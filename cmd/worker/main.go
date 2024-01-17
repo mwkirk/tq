@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"time"
+	"tq/internal/model"
 	"tq/pbuf"
 )
 
@@ -32,8 +33,44 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect: %v", err)
 	}
-	log.Printf("worker registered: %v, id: %v", rr.GetRegistered(), rr.GetId())
 
+	log.Printf("worker registered: %v, id: %v", rr.Registered, rr.Id)
+
+	done := make(chan struct{})
+	ticker := time.NewTicker(time.Second * 2)
+	defer ticker.Stop()
+
+	go func() {
+		w := model.Worker{
+			Registered:  true,
+			Id:          model.WorkerId(rr.Id),
+			Label:       label,
+			WorkerState: pbuf.WorkerState_WORKER_STATE_AVAILABLE,
+		}
+
+		for {
+			select {
+			case <-done:
+				log.Printf("exiting status goroutine")
+				return
+			case <-ticker.C:
+				log.Printf("tick")
+				sr, err := c.Status(ctx, &pbuf.StatusRequest{
+					Id:          w.Id.String(),
+					WorkerState: w.WorkerState,
+					JobStatus:   &w.JobStatus,
+				})
+
+				if err != nil {
+					log.Printf("error received from status request: %v", err)
+				} else {
+					log.Printf("status response, job control = %v", sr.JobControl)
+				}
+			}
+		}
+	}()
+
+	<-done
 	dr, err := c.Deregister(ctx, &pbuf.DeregisterRequest{})
 	if err != nil {
 		log.Fatalf("failed to degister: %v", err)

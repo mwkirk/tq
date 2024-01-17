@@ -20,7 +20,7 @@ message RegisterResponse {
 
 
 message DeregisterRequest {
-// empty now, may need something in future
+  string id = 1;
 }
 
 message DeregisterResponse {
@@ -35,11 +35,11 @@ enum WorkerState {
 }
 
 enum JobState {
-    JOB_STATE_NONE = 0;
-    JOB_STATE_RUNNING = 1;
-    JOB_STATE_FINISHED = 2;
-    JOB_STATE_ERROR = 3;
-    JOB_STATE_FAILED = 4;
+  JOB_STATE_NONE = 0;
+  JOB_STATE_RUNNING = 1;
+  JOB_STATE_FINISHED = 2;
+  JOB_STATE_ERROR = 3;
+  JOB_STATE_FAILED = 4;
 }
 
 message JobStatus {
@@ -49,8 +49,9 @@ message JobStatus {
 }
 
 message StatusRequest {
-  WorkerState worker_state = 1;    
-  optional JobStatus job_status = 2;
+  string id = 1;
+  WorkerState worker_state = 2;
+  optional JobStatus job_status = 3;
 }
 
 enum JobControl {
@@ -60,9 +61,22 @@ enum JobControl {
   JOB_CONTROL_CANCEL = 3;
 }
 
+enum JobKind {
+  JOB_KIND_NULL = 0;
+  JOB_KIND_TEST = 1;
+  JOB_KIND_SLEEP = 2;
+  JOB_KIND_FFMPEG = 3;
+}
+
+message Job {
+  JobKind kind = 1;
+  int64 num = 2;
+  string name = 3;
+  map<string, string> parms = 4;
+}
 
 message StatusResponse {
-    JobControl job_control = 1; 
-    // job parameters?
+  JobControl job_control = 1;
+  optional Job job = 2;
 }
 

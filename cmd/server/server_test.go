@@ -8,15 +8,27 @@ import (
 	"log"
 	"net"
 	"testing"
+	"tq/internal/container"
+	"tq/internal/model"
 	"tq/pbuf"
 )
+
+const fixtureId = "e0df68b9-3d33-4262-8af6-71516108ea2d"
 
 func testingServer(ctx context.Context) (pbuf.TqClient, func()) {
 	bufSize := 1024 * 1024
 	lis := bufconn.Listen(bufSize)
 
+	ws := container.NewSimpleMapStore[model.WorkerId, *model.Worker]()
+	ws.Add(fixtureId, &model.Worker{
+		Registered:  true,
+		Id:          fixtureId,
+		Label:       "fixture worker",
+		WorkerState: 0,
+	})
+	mgr := NewSimpleWorkerMgr(&ws)
 	srv := grpc.NewServer()
-	pbuf.RegisterTqServer(srv, NewServer())
+	pbuf.RegisterTqServer(srv, NewServer(mgr))
 	go func() {
 		if err := srv.Serve(lis); err != nil {
 			log.Printf("error serving: %v", err)
@@ -106,7 +118,9 @@ func TestTqServer_Deregister(t *testing.T) {
 		expected expectation
 	}{
 		"Successful_Deregister": {
-			in: &pbuf.DeregisterRequest{},
+			in: &pbuf.DeregisterRequest{
+				Id: fixtureId,
+			},
 			expected: expectation{
 				out: &pbuf.DeregisterResponse{
 					Registered: false,
