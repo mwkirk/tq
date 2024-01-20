@@ -1,4 +1,5 @@
 SRC_ROOT := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+CMD_CLI_DIR := $(SRC_ROOT)/cmd/cli
 CMD_SERVER_DIR := $(SRC_ROOT)/cmd/server
 CMD_WORKER_DIR := $(SRC_ROOT)/cmd/worker
 BUILD_DIR := $(SRC_ROOT)/build
@@ -9,6 +10,12 @@ proto:
 
 clean:
 	go clean
+
+cli:
+	cd $(CMD_CLI_DIR); go build -o $(BUILD_DIR)/tq
+
+cli-linux:
+	cd $(CMD_CLI_DIR); GOOS=linux CGO_ENABLED=0 go build -o $(BUILD_DIR)/tq
 
 worker: proto
 	cd $(CMD_WORKER_DIR); go build -o $(BUILD_DIR)/tq_worker
@@ -22,8 +29,8 @@ server: proto
 server-linux: proto
 	cd $(CMD_SERVER_DIR); GOOS=linux CGO_ENABLED=0 go build -o $(BUILD_DIR)/tq_srv
 
-all: worker server
+all: cli worker server
 
-all-linux: worker-linux server-linux
+all-linux: cli-linux worker-linux server-linux
 
-.PHONY: clean worker worker-linux proto server server-linux docker
+.PHONY: clean cli worker worker-linux proto server server-linux docker
