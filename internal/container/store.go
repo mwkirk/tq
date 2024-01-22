@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-var ErrorNotFound = errors.New("no found")
+var ErrorNotFound = errors.New("not found")
 
 type Store[T comparable, U any] interface {
 	Get(T) (U, error)
@@ -17,8 +17,8 @@ type SimpleMapStore[T comparable, U any] struct {
 	m map[T]U
 }
 
-func NewSimpleMapStore[T comparable, U any]() SimpleMapStore[T, U] {
-	return SimpleMapStore[T, U]{
+func NewSimpleMapStore[T comparable, U any]() *SimpleMapStore[T, U] {
+	return &SimpleMapStore[T, U]{
 		m: make(map[T]U),
 	}
 }
