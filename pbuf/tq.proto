@@ -8,7 +8,10 @@ service tq {
   rpc Deregister (DeregisterRequest) returns (DeregisterResponse) {}
   rpc Status (StatusRequest) returns (StatusResponse) {}
 }
-  
+
+// ------------------------------------------------------------------
+// Register messages
+// ------------------------------------------------------------------
 message RegisterRequest {
   string label = 1;
 }     
@@ -18,16 +21,21 @@ message RegisterResponse {
   string id = 2;
 }   
 
-
+// ------------------------------------------------------------------
+// Deregister messages
+// ------------------------------------------------------------------
 message DeregisterRequest {
   string id = 1;
 }
 
 message DeregisterResponse {
   bool registered = 1;
-}   
+}
 
 
+// ------------------------------------------------------------------
+// Status request messages
+// ------------------------------------------------------------------
 enum WorkerState {
   WORKER_STATE_UNAVAILABLE = 0;
   WORKER_STATE_AVAILABLE = 1;
@@ -36,16 +44,16 @@ enum WorkerState {
 
 enum JobState {
   JOB_STATE_NONE = 0;
-  JOB_STATE_RUNNING = 1;
-  JOB_STATE_FINISHED = 2;
-  JOB_STATE_ERROR = 3;
-  JOB_STATE_FAILED = 4;
+  JOB_STATE_RUN = 1;
+  JOB_STATE_DONE_OK = 2;
+  JOB_STATE_DONE_ERR = 3;
+  JOB_STATE_DONE_CANCEL = 4;
 }
 
 message JobStatus {
   JobState job_state = 1;
   optional float progress = 2;
-  optional string msg = 3;
+  repeated string msg = 3;
 }
 
 message StatusRequest {
@@ -54,6 +62,9 @@ message StatusRequest {
   optional JobStatus job_status = 3;
 }
 
+// ------------------------------------------------------------------
+// Status response messages
+// ------------------------------------------------------------------
 enum JobControl {
   JOB_CONTROL_NONE = 0;
   JOB_CONTROL_CONTINUE = 1; 
