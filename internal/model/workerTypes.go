@@ -7,6 +7,8 @@ import (
 
 type WorkerId string
 
+const NullWorkerId WorkerId = ""
+
 func NewWorkerId() (WorkerId, error) {
 	u, err := uuid.NewRandom()
 	return WorkerId(u.String()), err
@@ -21,5 +23,5 @@ type Worker struct {
 	Id          WorkerId
 	Label       string
 	WorkerState pbuf.WorkerState
-	JobStatus   pbuf.JobStatus
+	JobNum      int64
 }

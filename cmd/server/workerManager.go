@@ -9,17 +9,20 @@ import (
 	"tq/pbuf"
 )
 
-type WorkerMgr interface {
-	Register(label string) (model.WorkerId, error)
-	Deregister(id model.WorkerId) error
-	Status(id model.WorkerId, state pbuf.WorkerState, status *pbuf.JobStatus) error
+type StatusResponse struct {
+	pbuf.JobControl
+	model.Job // not a pointer! Make sure this is what we want.
 }
 
-type WorkerStore interface {
-	Get(model.WorkerId) (*model.Worker, error)
-	Add(model.WorkerId, *model.Worker) error
-	Remove(model.WorkerId) error
+type WorkerMgr interface {
+	Exists(id model.WorkerId) (bool, error)
+	Register(label string) (model.WorkerId, error)
+	Deregister(id model.WorkerId) error
+	AssignJob(id model.WorkerId, jobNum int64) error
+	Reset(id model.WorkerId) error
 }
+
+type WorkerStore container.Store[model.WorkerId, *model.Worker]
 
 type SimpleWorkerMgr struct {
 	store WorkerStore
@@ -29,6 +32,10 @@ func NewSimpleWorkerMgr(ws WorkerStore) *SimpleWorkerMgr {
 	return &SimpleWorkerMgr{
 		store: ws,
 	}
+}
+
+func (mgr *SimpleWorkerMgr) Exists(id model.WorkerId) (bool, error) {
+	return mgr.store.Exists(id)
 }
 
 func (mgr *SimpleWorkerMgr) Register(label string) (model.WorkerId, error) {
@@ -67,29 +74,18 @@ func (mgr *SimpleWorkerMgr) Deregister(id model.WorkerId) error {
 	return nil
 }
 
-func (mgr *SimpleWorkerMgr) Status(id model.WorkerId, workerState pbuf.WorkerState, jobStatus *pbuf.JobStatus) error {
-	w, err := mgr.store.Get(id)
-	if err != nil {
-		if errors.Is(err, container.ErrorNotFound) {
-			log.Printf("status error: unknown worker [%s]", id)
-		}
-		return err
-	}
+func (mgr *SimpleWorkerMgr) AssignJob(id model.WorkerId, jobNum int64) error {
+	return mgr.store.Update(id, func(w *model.Worker) *model.Worker {
+		w.JobNum = jobNum
+		w.WorkerState = pbuf.WorkerState_WORKER_STATE_WORKING
+		return w
+	})
+}
 
-	log.Printf("worker reported status [%s, %v]", id, workerState)
-
-	switch workerState {
-	case pbuf.WorkerState_WORKER_STATE_UNAVAILABLE:
-		// no-op for now
-	case pbuf.WorkerState_WORKER_STATE_AVAILABLE:
-		log.Printf("worker available [%s]", id)
-
-	case pbuf.WorkerState_WORKER_STATE_WORKING:
-		log.Printf("worker working [%s, %v]", id, jobStatus)
-
-	default:
-		log.Printf("bad worker state [%s, %v]. THIS SHOULD NOT HAPPEN", w.Id, w.WorkerState)
-	}
-
-	return nil
+func (mgr *SimpleWorkerMgr) Reset(id model.WorkerId) error {
+	return mgr.store.Update(id, func(w *model.Worker) *model.Worker {
+		w.JobNum = 0
+		w.WorkerState = pbuf.WorkerState_WORKER_STATE_UNAVAILABLE
+		return w
+	})
 }

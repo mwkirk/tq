@@ -42,11 +42,13 @@ func main() {
 
 	go func() {
 		w := model.Worker{
-			Registered:  true,
+			Registered:  rr.Registered,
 			Id:          model.WorkerId(rr.Id),
 			Label:       label,
 			WorkerState: pbuf.WorkerState_WORKER_STATE_AVAILABLE,
 		}
+
+		j := pbuf.JobStatus{}
 
 		for {
 			select {
@@ -58,13 +60,13 @@ func main() {
 				sr, err := c.Status(ctx, &pbuf.StatusRequest{
 					Id:          w.Id.String(),
 					WorkerState: w.WorkerState,
-					JobStatus:   &w.JobStatus,
+					JobStatus:   &j,
 				})
 
 				if err != nil {
 					log.Printf("error received from status request: %v", err)
 				} else {
-					log.Printf("status response, job control = %v", sr.JobControl)
+					log.Printf("status response: %v", sr)
 				}
 			}
 		}

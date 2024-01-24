@@ -28,7 +28,7 @@ func testingServer(ctx context.Context) (pbuf.TqClient, func()) {
 	})
 	mgr := NewSimpleWorkerMgr(&ws)
 	srv := grpc.NewServer()
-	pbuf.RegisterTqServer(srv, NewServer(mgr))
+	pbuf.RegisterTqServer(srv, newServer(mgr))
 	go func() {
 		if err := srv.Serve(lis); err != nil {
 			log.Printf("error serving: %v", err)

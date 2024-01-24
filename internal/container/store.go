@@ -2,18 +2,22 @@ package container
 
 import (
 	"errors"
+	"sync"
 )
 
 var ErrorNotFound = errors.New("not found")
 
+// Store might be implemented by a database or external service that could return an error
 type Store[T comparable, U any] interface {
+	Exists(T) (bool, error)
 	Get(T) (U, error)
 	Add(T, U) error
 	Remove(T) error
+	Update(T, func(v U) U) error
 }
 
-// TODO: May need to protect this with a mutex if it turns out it will be accessed concurrently
 type SimpleMapStore[T comparable, U any] struct {
+	l sync.RWMutex
 	m map[T]U
 }
 
@@ -23,7 +27,19 @@ func NewSimpleMapStore[T comparable, U any]() *SimpleMapStore[T, U] {
 	}
 }
 
+func (s *SimpleMapStore[T, U]) Exists(k T) (bool, error) {
+	s.l.RLock()
+	defer s.l.RUnlock()
+	_, ok := s.m[k]
+	if !ok {
+		return ok, ErrorNotFound
+	}
+	return ok, nil
+}
+
 func (s *SimpleMapStore[T, U]) Get(k T) (U, error) {
+	s.l.RLock()
+	defer s.l.RUnlock()
 	var v U
 	v, ok := s.m[k]
 	if !ok {
@@ -33,11 +49,22 @@ func (s *SimpleMapStore[T, U]) Get(k T) (U, error) {
 }
 
 func (s *SimpleMapStore[T, U]) Add(k T, v U) error {
+	s.l.Lock()
+	defer s.l.Unlock()
 	s.m[k] = v
 	return nil
 }
 
 func (s *SimpleMapStore[T, U]) Remove(k T) error {
+	s.l.Lock()
+	defer s.l.Unlock()
 	delete(s.m, k)
+	return nil
+}
+
+func (s *SimpleMapStore[T, U]) Update(k T, f func(v U) U) error {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.m[k] = f(s.m[k]) // todo: f() might fail, should handle this
 	return nil
 }
