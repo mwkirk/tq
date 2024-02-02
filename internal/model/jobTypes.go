@@ -1,9 +1,9 @@
 package model
 
-import "tq/pbuf"
+import "tq/pb"
 
 type Job struct {
-	Kind             pbuf.JobKind
+	Kind             pb.JobKind
 	Num              int64
 	Name             string
 	Parms            map[string]string

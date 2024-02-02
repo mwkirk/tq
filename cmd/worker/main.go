@@ -8,7 +8,7 @@ import (
 	"log"
 	"time"
 	"tq/internal/model"
-	"tq/pbuf"
+	"tq/pb"
 )
 
 var (
@@ -24,12 +24,12 @@ func main() {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
-	c := pbuf.NewTqClient(conn)
+	c := pb.NewTqWorkerClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
-	rr, err := c.Register(ctx, &pbuf.RegisterRequest{Label: label})
+	rr, err := c.Register(ctx, &pb.RegisterRequest{Label: label})
 	if err != nil {
 		log.Fatalf("failed to connect: %v", err)
 	}
@@ -45,10 +45,10 @@ func main() {
 			Registered:  rr.Registered,
 			Id:          model.WorkerId(rr.Id),
 			Label:       label,
-			WorkerState: pbuf.WorkerState_WORKER_STATE_AVAILABLE,
+			WorkerState: pb.WorkerState_WORKER_STATE_AVAILABLE,
 		}
 
-		j := pbuf.JobStatus{}
+		j := pb.JobStatus{}
 
 		for {
 			select {
@@ -57,7 +57,7 @@ func main() {
 				return
 			case <-ticker.C:
 				log.Printf("tick")
-				sr, err := c.Status(ctx, &pbuf.StatusRequest{
+				sr, err := c.Status(ctx, &pb.StatusRequest{
 					Id:          w.Id.String(),
 					WorkerState: w.WorkerState,
 					JobStatus:   &j,
@@ -73,7 +73,7 @@ func main() {
 	}()
 
 	<-done
-	dr, err := c.Deregister(ctx, &pbuf.DeregisterRequest{})
+	dr, err := c.Deregister(ctx, &pb.DeregisterRequest{})
 	if err != nil {
 		log.Fatalf("failed to degister: %v", err)
 	}

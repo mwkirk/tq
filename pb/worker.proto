@@ -1,9 +1,9 @@
 syntax = "proto3";
-option go_package = "tq/pbuf";
+option go_package = "tq/pb";
 
-package pbuf;
+package pb;
 
-service tq {
+service TqWorker {
   rpc Register (RegisterRequest) returns (RegisterResponse) {}
   rpc Deregister (DeregisterRequest) returns (DeregisterResponse) {}
   rpc Status (StatusRequest) returns (StatusResponse) {}

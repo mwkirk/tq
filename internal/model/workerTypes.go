@@ -2,7 +2,7 @@ package model
 
 import (
 	"github.com/google/uuid"
-	"tq/pbuf"
+	"tq/pb"
 )
 
 type WorkerId string
@@ -22,6 +22,6 @@ type Worker struct {
 	Registered  bool
 	Id          WorkerId
 	Label       string
-	WorkerState pbuf.WorkerState
+	WorkerState pb.WorkerState
 	JobNum      int64
 }

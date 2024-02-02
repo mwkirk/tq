@@ -6,7 +6,7 @@ import (
 	"net"
 	"tq/internal/container"
 	"tq/internal/model"
-	"tq/pbuf"
+	"tq/pb"
 )
 
 const (
@@ -30,7 +30,7 @@ func main() {
 	orc := NewSimpleQueueOrchestrator(workerMgr, jobMgr)
 
 	srv := grpc.NewServer()
-	pbuf.RegisterTqServer(srv, newServer(orc))
+	pb.RegisterTqWorkerServer(srv, newServer(orc))
 
 	log.Printf("started server on %s", lis.Addr().String())
 	err = srv.Serve(lis)

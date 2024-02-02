@@ -6,13 +6,13 @@ import (
 	"log"
 	"tq/internal/container"
 	"tq/internal/model"
-	"tq/pbuf"
+	"tq/pb"
 )
 
 type QueueOrchestrator interface {
 	Register(label string) (model.WorkerId, error)
 	Deregister(id model.WorkerId) error
-	Status(id model.WorkerId, state pbuf.WorkerState, status *pbuf.JobStatus) (StatusResponse, error)
+	Status(id model.WorkerId, state pb.WorkerState, status *pb.JobStatus) (StatusResponse, error)
 }
 
 type SimpleQueueOrchestrator struct {
@@ -37,19 +37,19 @@ func (orc *SimpleQueueOrchestrator) Deregister(id model.WorkerId) error {
 	return orc.workerMgr.Deregister(id)
 }
 
-func (orc *SimpleQueueOrchestrator) Status(id model.WorkerId, workerState pbuf.WorkerState,
-	jobStatus *pbuf.JobStatus) (StatusResponse, error) {
+func (orc *SimpleQueueOrchestrator) Status(id model.WorkerId, workerState pb.WorkerState,
+	jobStatus *pb.JobStatus) (StatusResponse, error) {
 	log.Printf("worker reported status [%s, %v]", id, workerState)
 
 	switch workerState {
-	case pbuf.WorkerState_WORKER_STATE_UNAVAILABLE:
+	case pb.WorkerState_WORKER_STATE_UNAVAILABLE:
 		return StatusResponse{}, nil // no-op for now
-	case pbuf.WorkerState_WORKER_STATE_AVAILABLE:
+	case pb.WorkerState_WORKER_STATE_AVAILABLE:
 		log.Printf("worker available [%s]", id)
 		return orc.dispatch(id)
-	case pbuf.WorkerState_WORKER_STATE_WORKING:
+	case pb.WorkerState_WORKER_STATE_WORKING:
 		log.Printf("worker working [%s, %v]", id, jobStatus)
-		return StatusResponse{JobControl: pbuf.JobControl_JOB_CONTROL_CONTINUE}, nil
+		return StatusResponse{JobControl: pb.JobControl_JOB_CONTROL_CONTINUE}, nil
 	default:
 		return StatusResponse{}, fmt.Errorf("bad worker state [%s, %v]. THIS SHOULD NOT HAPPEN", id, workerState)
 	}
@@ -76,9 +76,9 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (StatusResponse,
 	if err != nil {
 		if errors.Is(err, container.ErrorQueueEmpty) {
 			log.Printf("no jobs waiting")
-			return StatusResponse{JobControl: pbuf.JobControl_JOB_CONTROL_NONE}, nil
+			return StatusResponse{JobControl: pb.JobControl_JOB_CONTROL_NONE}, nil
 		}
-		return StatusResponse{JobControl: pbuf.JobControl_JOB_CONTROL_NONE}, err
+		return StatusResponse{JobControl: pb.JobControl_JOB_CONTROL_NONE}, err
 	}
 
 	log.Printf("here 2")
@@ -109,7 +109,7 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (StatusResponse,
 	// Build the final response
 	log.Printf("dispatching job %d to worker [%s]", j.Num, id)
 	return StatusResponse{
-		JobControl: pbuf.JobControl_JOB_CONTROL_NEW,
+		JobControl: pb.JobControl_JOB_CONTROL_NEW,
 		Job:        *j,
 	}, nil
 }

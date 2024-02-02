@@ -3,10 +3,10 @@ CMD_CLI_DIR := $(SRC_ROOT)/cmd/cli
 CMD_SERVER_DIR := $(SRC_ROOT)/cmd/server
 CMD_WORKER_DIR := $(SRC_ROOT)/cmd/worker
 BUILD_DIR := $(SRC_ROOT)/build
-PROTO_DIR := $(SRC_ROOT)/pbuf
+PROTO_DIR := $(SRC_ROOT)/pb
 
 proto:
-	cd $(PROTO_DIR); protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative tq.proto
+	cd $(PROTO_DIR); protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative *.proto
 
 clean:
 	go clean

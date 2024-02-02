@@ -6,11 +6,11 @@ import (
 	"log"
 	"tq/internal/container"
 	"tq/internal/model"
-	"tq/pbuf"
+	"tq/pb"
 )
 
 type StatusResponse struct {
-	pbuf.JobControl
+	pb.JobControl
 	model.Job // not a pointer! Make sure this is what we want.
 }
 
@@ -77,7 +77,7 @@ func (mgr *SimpleWorkerMgr) Deregister(id model.WorkerId) error {
 func (mgr *SimpleWorkerMgr) AssignJob(id model.WorkerId, jobNum int64) error {
 	return mgr.store.Update(id, func(w *model.Worker) *model.Worker {
 		w.JobNum = jobNum
-		w.WorkerState = pbuf.WorkerState_WORKER_STATE_WORKING
+		w.WorkerState = pb.WorkerState_WORKER_STATE_WORKING
 		return w
 	})
 }
@@ -85,7 +85,7 @@ func (mgr *SimpleWorkerMgr) AssignJob(id model.WorkerId, jobNum int64) error {
 func (mgr *SimpleWorkerMgr) Reset(id model.WorkerId) error {
 	return mgr.store.Update(id, func(w *model.Worker) *model.Worker {
 		w.JobNum = 0
-		w.WorkerState = pbuf.WorkerState_WORKER_STATE_UNAVAILABLE
+		w.WorkerState = pb.WorkerState_WORKER_STATE_UNAVAILABLE
 		return w
 	})
 }

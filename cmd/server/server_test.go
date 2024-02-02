@@ -10,12 +10,12 @@ import (
 	"testing"
 	"tq/internal/container"
 	"tq/internal/model"
-	"tq/pbuf"
+	"tq/pb"
 )
 
 const fixtureId = "e0df68b9-3d33-4262-8af6-71516108ea2d"
 
-func testingServer(ctx context.Context) (pbuf.TqClient, func()) {
+func testingServer(ctx context.Context) (pb.TqClient, func()) {
 	bufSize := 1024 * 1024
 	lis := bufconn.Listen(bufSize)
 
@@ -28,7 +28,7 @@ func testingServer(ctx context.Context) (pbuf.TqClient, func()) {
 	})
 	mgr := NewSimpleWorkerMgr(&ws)
 	srv := grpc.NewServer()
-	pbuf.RegisterTqServer(srv, newServer(mgr))
+	pb.RegisterTqServer(srv, newServer(mgr))
 	go func() {
 		if err := srv.Serve(lis); err != nil {
 			log.Printf("error serving: %v", err)
@@ -53,7 +53,7 @@ func testingServer(ctx context.Context) (pbuf.TqClient, func()) {
 		srv.Stop()
 	}
 
-	c := pbuf.NewTqClient(conn)
+	c := pb.NewTqClient(conn)
 	return c, closer
 }
 
@@ -64,20 +64,20 @@ func TestTqServer_Register(t *testing.T) {
 	defer closer()
 
 	type expectation struct {
-		out *pbuf.RegisterResponse
+		out *pb.RegisterResponse
 		err error
 	}
 
 	tests := map[string]struct {
-		in       *pbuf.RegisterRequest
+		in       *pb.RegisterRequest
 		expected expectation
 	}{
 		"Successful_Register": {
-			in: &pbuf.RegisterRequest{
+			in: &pb.RegisterRequest{
 				Label: "test worker",
 			},
 			expected: expectation{
-				out: &pbuf.RegisterResponse{
+				out: &pb.RegisterResponse{
 					Registered: true,
 					Id:         "testId",
 				},
@@ -109,20 +109,20 @@ func TestTqServer_Deregister(t *testing.T) {
 	defer closer()
 
 	type expectation struct {
-		out *pbuf.DeregisterResponse
+		out *pb.DeregisterResponse
 		err error
 	}
 
 	tests := map[string]struct {
-		in       *pbuf.DeregisterRequest
+		in       *pb.DeregisterRequest
 		expected expectation
 	}{
 		"Successful_Deregister": {
-			in: &pbuf.DeregisterRequest{
+			in: &pb.DeregisterRequest{
 				Id: fixtureId,
 			},
 			expected: expectation{
-				out: &pbuf.DeregisterResponse{
+				out: &pb.DeregisterResponse{
 					Registered: false,
 				},
 				err: nil,
