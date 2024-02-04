@@ -9,11 +9,6 @@ import (
 	"tq/pb"
 )
 
-type StatusResponse struct {
-	pb.JobControl
-	model.Job // not a pointer! Make sure this is what we want.
-}
-
 type WorkerMgr interface {
 	Exists(id model.WorkerId) (bool, error)
 	Register(label string) (model.WorkerId, error)

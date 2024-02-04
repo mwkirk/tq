@@ -3,6 +3,8 @@ option go_package = "tq/pb";
 
 package pb;
 
+import "shared.proto";
+
 service TqWorker {
   rpc Register (RegisterRequest) returns (RegisterResponse) {}
   rpc Deregister (DeregisterRequest) returns (DeregisterResponse) {}
@@ -42,19 +44,6 @@ enum WorkerState {
   WORKER_STATE_WORKING = 2;  
 }
 
-enum JobState {
-  JOB_STATE_NONE = 0;
-  JOB_STATE_RUN = 1;
-  JOB_STATE_DONE_OK = 2;
-  JOB_STATE_DONE_ERR = 3;
-  JOB_STATE_DONE_CANCEL = 4;
-}
-
-message JobStatus {
-  JobState job_state = 1;
-  optional float progress = 2;
-  repeated string msg = 3;
-}
 
 message StatusRequest {
   string id = 1;
@@ -65,27 +54,6 @@ message StatusRequest {
 // ------------------------------------------------------------------
 // Status response messages
 // ------------------------------------------------------------------
-enum JobControl {
-  JOB_CONTROL_NONE = 0;
-  JOB_CONTROL_CONTINUE = 1; 
-  JOB_CONTROL_NEW = 2;
-  JOB_CONTROL_CANCEL = 3;
-}
-
-enum JobKind {
-  JOB_KIND_NULL = 0;
-  JOB_KIND_TEST = 1;
-  JOB_KIND_SLEEP = 2;
-  JOB_KIND_FFMPEG = 3;
-}
-
-message Job {
-  JobKind kind = 1;
-  int64 num = 2;
-  string name = 3;
-  map<string, string> parms = 4;
-}
-
 message StatusResponse {
   JobControl job_control = 1;
   optional Job job = 2;

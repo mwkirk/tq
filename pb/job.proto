@@ -1,0 +1,51 @@
+syntax = "proto3";
+option go_package = "tq/pb";
+
+package pb;
+
+import "shared.proto";
+
+service TqJob {
+  rpc Submit (SubmitRequest) returns (SubmitResponse) {}
+  rpc Cancel (CancelRequest) returns (CancelResponse) {}
+  rpc List (ListRequest) returns (ListResponse) {}
+}
+
+// ------------------------------------------------------------------
+// Submit messages
+// ------------------------------------------------------------------
+message SubmitRequest {
+  Job job = 1;
+}
+
+message SubmitResponse {
+  bool accepted = 1;
+}
+
+// ------------------------------------------------------------------
+// Cancel messages
+// ------------------------------------------------------------------
+message CancelRequest {
+  int64 jobNum = 1;
+}
+
+message CancelResponse {
+  bool accepted = 1;
+}
+
+
+// ------------------------------------------------------------------
+// List request messages
+// ------------------------------------------------------------------
+
+message ListRequest {
+}
+
+// ------------------------------------------------------------------
+// List response messages
+// ------------------------------------------------------------------
+
+message ListResponse {
+  repeated JobStatus jobStatus = 1;
+}
+

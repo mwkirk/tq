@@ -23,10 +23,11 @@ func main() {
 	// wire up dependencies
 	ws := container.NewSimpleMapStore[model.WorkerId, *model.Worker]()
 	workerMgr := NewSimpleWorkerMgr(ws)
-	wq := container.NewSliceQueue[*model.Job]()
-	rq := container.NewSliceQueue[*model.Job]()
-	dq := container.NewSliceQueue[*model.Job]()
-	jobMgr := NewSimpleJobMgr(wq, rq, dq)
+	wq := container.NewSliceQueue[*pb.Job]()
+	rq := container.NewSliceQueue[*pb.Job]()
+	dq := container.NewSliceQueue[*pb.Job]()
+	aws := container.NewSimpleMapStore[int64, model.WorkerId]()
+	jobMgr := NewSimpleJobMgr(wq, rq, dq, aws)
 	orc := NewSimpleQueueOrchestrator(workerMgr, jobMgr)
 
 	srv := grpc.NewServer()

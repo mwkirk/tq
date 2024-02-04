@@ -44,14 +44,5 @@ func (s *server) Status(ctx context.Context, request *pb.StatusRequest) (*pb.Sta
 	if err != nil {
 		return nil, fmt.Errorf("status update failed for worker: %w", err)
 	}
-
-	return &pb.StatusResponse{
-		JobControl: sr.JobControl,
-		Job: &pb.Job{
-			Kind:  sr.Kind,
-			Num:   sr.Num,
-			Name:  sr.Name,
-			Parms: sr.Parms,
-		},
-	}, nil
+	return &sr, nil
 }

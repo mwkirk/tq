@@ -15,10 +15,11 @@ import (
 
 const fixtureId = "e0df68b9-3d33-4262-8af6-71516108ea2d"
 
-func testingServer(ctx context.Context) (pb.TqClient, func()) {
+func testingServer(ctx context.Context) (pb.TqWorkerClient, func()) {
 	bufSize := 1024 * 1024
 	lis := bufconn.Listen(bufSize)
 
+	// wire up dependencies
 	ws := container.NewSimpleMapStore[model.WorkerId, *model.Worker]()
 	ws.Add(fixtureId, &model.Worker{
 		Registered:  true,
@@ -26,9 +27,16 @@ func testingServer(ctx context.Context) (pb.TqClient, func()) {
 		Label:       "fixture worker",
 		WorkerState: 0,
 	})
-	mgr := NewSimpleWorkerMgr(&ws)
+	workerMgr := NewSimpleWorkerMgr(ws)
+	wq := container.NewSliceQueue[*pb.Job]()
+	rq := container.NewSliceQueue[*pb.Job]()
+	dq := container.NewSliceQueue[*pb.Job]()
+	aws := container.NewSimpleMapStore[int64, model.WorkerId]()
+	jobMgr := NewSimpleJobMgr(wq, rq, dq, aws)
+	orc := NewSimpleQueueOrchestrator(workerMgr, jobMgr)
+
 	srv := grpc.NewServer()
-	pb.RegisterTqServer(srv, newServer(mgr))
+	pb.RegisterTqWorkerServer(srv, newServer(orc))
 	go func() {
 		if err := srv.Serve(lis); err != nil {
 			log.Printf("error serving: %v", err)
@@ -53,7 +61,7 @@ func testingServer(ctx context.Context) (pb.TqClient, func()) {
 		srv.Stop()
 	}
 
-	c := pb.NewTqClient(conn)
+	c := pb.NewTqWorkerClient(conn)
 	return c, closer
 }
 
