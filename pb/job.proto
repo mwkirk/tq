@@ -20,13 +20,14 @@ message SubmitRequest {
 
 message SubmitResponse {
   bool accepted = 1;
+  uint32 jobNum = 2;
 }
 
 // ------------------------------------------------------------------
 // Cancel messages
 // ------------------------------------------------------------------
 message CancelRequest {
-  int64 jobNum = 1;
+  uint32 jobNum = 1;
 }
 
 message CancelResponse {

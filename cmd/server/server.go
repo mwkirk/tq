@@ -9,6 +9,7 @@ import (
 
 type server struct {
 	pb.UnimplementedTqWorkerServer
+	pb.UnimplementedTqJobServer
 	orc QueueOrchestrator
 }
 
@@ -18,6 +19,10 @@ func newServer(orc QueueOrchestrator) *server {
 	}
 	return s
 }
+
+// ------------------------------------------------------------------
+// TqWorker
+// ------------------------------------------------------------------
 
 func (s *server) Register(ctx context.Context, request *pb.RegisterRequest) (*pb.RegisterResponse, error) {
 	id, err := s.orc.Register(request.Label)
@@ -45,4 +50,16 @@ func (s *server) Status(ctx context.Context, request *pb.StatusRequest) (*pb.Sta
 		return nil, fmt.Errorf("status update failed for worker: %w", err)
 	}
 	return &sr, nil
+}
+
+// ------------------------------------------------------------------
+// TqJob
+// ------------------------------------------------------------------
+
+func (s *server) Submit(ctx context.Context, request *pb.SubmitRequest) (*pb.SubmitResponse, error) {
+	err := s.orc.Submit(request.Job)
+	if err != nil {
+		return &pb.SubmitResponse{Accepted: false}, err
+	}
+	return &pb.SubmitResponse{Accepted: true, JobNum: request.Job.Num}, nil
 }

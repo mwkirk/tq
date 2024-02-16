@@ -13,6 +13,9 @@ type QueueOrchestrator interface {
 	Register(label string) (model.WorkerId, error)
 	Deregister(id model.WorkerId) error
 	Status(id model.WorkerId, state pb.WorkerState, status *pb.JobStatus) (pb.StatusResponse, error)
+	Submit(job *pb.Job) error
+	Cancel(jobNum int64) error
+	List() error
 }
 
 type SimpleQueueOrchestrator struct {
@@ -55,6 +58,20 @@ func (orc *SimpleQueueOrchestrator) Status(id model.WorkerId, workerState pb.Wor
 	}
 }
 
+func (orc *SimpleQueueOrchestrator) Submit(job *pb.Job) error {
+	return orc.jobMgr.Submit(job)
+}
+
+func (orc *SimpleQueueOrchestrator) Cancel(jobNum int64) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (orc *SimpleQueueOrchestrator) List() error {
+	// TODO implement me
+	panic("implement me")
+}
+
 // ------------------------------------------------------------------
 // Unexported methods
 // ------------------------------------------------------------------
@@ -69,7 +86,7 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (pb.StatusRespon
 		}
 		return pb.StatusResponse{}, err
 	}
-	log.Printf("here 1")
+
 	// Dequeue a job from the wait queue (safe) to prevent another goroutine from grabbing it.
 	// If the wait queue is empty, then respond with job control none
 	j, err := orc.jobMgr.DequeueWait()
@@ -81,9 +98,8 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (pb.StatusRespon
 		return pb.StatusResponse{JobControl: pb.JobControl_JOB_CONTROL_NONE}, err
 	}
 
-	log.Printf("here 2")
 	// Assign job to worker
-	err = orc.workerMgr.AssignJob(id, j.Num)
+	err = orc.workerMgr.AssignJob(id, model.JobNumber(j.Num))
 	if err != nil {
 		// If we can't assign the job to the worker, then try to put the job back in the wait queue.
 		// This could fail as well, of course, but we'll just swallow the error here since it's just for fun.
@@ -91,9 +107,8 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (pb.StatusRespon
 		_ = orc.jobMgr.EnqueueWait(j)
 		return pb.StatusResponse{}, fmt.Errorf("error assigning job %d to worker [%s]: %w", j.Num, id, err)
 	}
-	log.Printf("here 3")
 
-	// Assign work to job
+	// Assign worker to job
 	err = orc.jobMgr.AssignWorker(j, id)
 	if err != nil {
 		// Again, only so much we can do to roll back to a correct state w/o a more transactional design

@@ -12,6 +12,7 @@ import (
 )
 
 var cfgFile string
+var addr string
 
 var rootCmd = &cobra.Command{
 	Use:   "tq",
@@ -34,11 +35,8 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.tq.yaml)")
+	rootCmd.PersistentFlags().StringVar(&addr, "addr", "localhost:8000", "server address")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

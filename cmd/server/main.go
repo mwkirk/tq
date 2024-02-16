@@ -26,12 +26,14 @@ func main() {
 	wq := container.NewSliceQueue[*pb.Job]()
 	rq := container.NewSliceQueue[*pb.Job]()
 	dq := container.NewSliceQueue[*pb.Job]()
-	aws := container.NewSimpleMapStore[int64, model.WorkerId]()
+	aws := container.NewSimpleMapStore[model.JobNumber, model.WorkerId]()
 	jobMgr := NewSimpleJobMgr(wq, rq, dq, aws)
 	orc := NewSimpleQueueOrchestrator(workerMgr, jobMgr)
 
 	srv := grpc.NewServer()
-	pb.RegisterTqWorkerServer(srv, newServer(orc))
+	provider := newServer(orc)
+	pb.RegisterTqWorkerServer(srv, provider)
+	pb.RegisterTqJobServer(srv, provider)
 
 	log.Printf("started server on %s", lis.Addr().String())
 	err = srv.Serve(lis)

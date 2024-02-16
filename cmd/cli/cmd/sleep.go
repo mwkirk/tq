@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"tq/pb"
 
 	"github.com/spf13/cobra"
 )
@@ -24,6 +25,15 @@ var sleepCmd = &cobra.Command{
 		}
 
 		fmt.Printf("sleep job of %d secs\n", sec)
+		j := pb.Job{
+			Kind: pb.JobKind_JOB_KIND_SLEEP,
+			Num:  0,
+			Name: "sleep " + args[0],
+			Parms: map[string]string{
+				"duration": args[0],
+			},
+		}
+		submit(j)
 	},
 }
 
@@ -36,7 +46,7 @@ func integerArgs(cmd *cobra.Command, args []string) error {
 	for _, v := range args {
 		_, err := strconv.Atoi(v)
 		if err != nil {
-			return err
+			return fmt.Errorf("argument must be an integer")
 		}
 	}
 	return nil

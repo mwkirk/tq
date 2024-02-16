@@ -23,5 +23,5 @@ type Worker struct {
 	Id          WorkerId
 	Label       string
 	WorkerState pb.WorkerState
-	JobNum      int64
+	JobNum      JobNumber
 }

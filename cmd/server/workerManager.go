@@ -13,7 +13,7 @@ type WorkerMgr interface {
 	Exists(id model.WorkerId) (bool, error)
 	Register(label string) (model.WorkerId, error)
 	Deregister(id model.WorkerId) error
-	AssignJob(id model.WorkerId, jobNum int64) error
+	AssignJob(id model.WorkerId, jobNum model.JobNumber) error
 	Reset(id model.WorkerId) error
 }
 
@@ -69,7 +69,7 @@ func (mgr *SimpleWorkerMgr) Deregister(id model.WorkerId) error {
 	return nil
 }
 
-func (mgr *SimpleWorkerMgr) AssignJob(id model.WorkerId, jobNum int64) error {
+func (mgr *SimpleWorkerMgr) AssignJob(id model.WorkerId, jobNum model.JobNumber) error {
 	return mgr.store.Update(id, func(w *model.Worker) *model.Worker {
 		w.JobNum = jobNum
 		w.WorkerState = pb.WorkerState_WORKER_STATE_WORKING

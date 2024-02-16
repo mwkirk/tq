@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
@@ -37,6 +38,7 @@ func main() {
 	log.Printf("worker registered: %v, id: %v", rr.Registered, rr.Id)
 
 	done := make(chan struct{})
+	updates := make(chan pb.JobStatus)
 	ticker := time.NewTicker(time.Second * 2)
 	defer ticker.Stop()
 
@@ -48,15 +50,19 @@ func main() {
 			WorkerState: pb.WorkerState_WORKER_STATE_AVAILABLE,
 		}
 
-		j := pb.JobStatus{}
+		// fixme: this needs to be non-blocking
+		updates <- pb.JobStatus{}
 
 		for {
+			var j pb.JobStatus
+
 			select {
 			case <-done:
 				log.Printf("exiting status goroutine")
 				return
+			case j = <-updates:
+				log.Printf("job status updated: %v", j)
 			case <-ticker.C:
-				log.Printf("tick")
 				sr, err := c.Status(ctx, &pb.StatusRequest{
 					Id:          w.Id.String(),
 					WorkerState: w.WorkerState,
@@ -66,7 +72,11 @@ func main() {
 				if err != nil {
 					log.Printf("error received from status request: %v", err)
 				} else {
-					log.Printf("status response: %v", sr)
+					log.Printf("handleStatusResponse")
+					err := handleStatusResponse(sr, &w, updates)
+					if err != nil {
+						log.Printf("%s", err)
+					}
 				}
 			}
 		}
@@ -78,4 +88,50 @@ func main() {
 		log.Fatalf("failed to degister: %v", err)
 	}
 	log.Printf("worker deregistered: %v", dr.GetRegistered())
+}
+
+func handleStatusResponse(sr *pb.StatusResponse, w *model.Worker, updates chan<- pb.JobStatus) error {
+	switch sr.JobControl {
+	case pb.JobControl_JOB_CONTROL_NONE:
+		log.Printf("no job available")
+	case pb.JobControl_JOB_CONTROL_CONTINUE:
+		log.Printf("continue current job")
+	case pb.JobControl_JOB_CONTROL_NEW:
+		log.Printf("new job")
+		err := startJob(sr.Job, updates)
+		if err != nil {
+			return err
+		}
+		w.WorkerState = pb.WorkerState_WORKER_STATE_WORKING
+	case pb.JobControl_JOB_CONTROL_CANCEL:
+		log.Printf("cancel current job")
+		w.WorkerState = pb.WorkerState_WORKER_STATE_AVAILABLE
+	default:
+		return fmt.Errorf("received unexpect job control message")
+	}
+
+	return nil
+}
+
+func startJob(job *pb.Job, updates chan<- pb.JobStatus) error {
+	// guard
+	if job == nil {
+		return fmt.Errorf("no job data")
+	}
+
+	switch job.Kind {
+	case pb.JobKind_JOB_KIND_NULL:
+		return fmt.Errorf("new null job received")
+	case pb.JobKind_JOB_KIND_TEST:
+		log.Printf("test job received")
+	case pb.JobKind_JOB_KIND_SLEEP:
+		workerJob := newWorkerSleepJob(job, updates)
+		workerJob.run()
+	case pb.JobKind_JOB_KIND_FFMPEG:
+		log.Printf("FFMPEG job received")
+	default:
+		return fmt.Errorf("unexpected job kind")
+	}
+
+	return nil
 }
