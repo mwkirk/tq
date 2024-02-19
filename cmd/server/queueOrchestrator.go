@@ -12,7 +12,7 @@ import (
 type QueueOrchestrator interface {
 	Register(label string) (model.WorkerId, error)
 	Deregister(id model.WorkerId) error
-	Status(id model.WorkerId, state pb.WorkerState, status *pb.JobStatus) (pb.StatusResponse, error)
+	Status(id model.WorkerId, state pb.WorkerState, status []*pb.JobStatus) (pb.StatusResponse, error)
 	Submit(job *pb.Job) error
 	Cancel(jobNum int64) error
 	List() error
@@ -41,14 +41,13 @@ func (orc *SimpleQueueOrchestrator) Deregister(id model.WorkerId) error {
 }
 
 func (orc *SimpleQueueOrchestrator) Status(id model.WorkerId, workerState pb.WorkerState,
-	jobStatus *pb.JobStatus) (pb.StatusResponse, error) {
+	jobStatus []*pb.JobStatus) (pb.StatusResponse, error) {
 	log.Printf("worker reported status [%s, %v]", id, workerState)
 
 	switch workerState {
 	case pb.WorkerState_WORKER_STATE_UNAVAILABLE:
 		return pb.StatusResponse{}, nil // no-op for now
 	case pb.WorkerState_WORKER_STATE_AVAILABLE:
-		log.Printf("worker available [%s]", id)
 		return orc.dispatch(id)
 	case pb.WorkerState_WORKER_STATE_WORKING:
 		log.Printf("worker working [%s, %v]", id, jobStatus)

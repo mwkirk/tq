@@ -48,7 +48,7 @@ enum WorkerState {
 message StatusRequest {
   string id = 1;
   WorkerState worker_state = 2;
-  optional JobStatus job_status = 3;
+  repeated JobStatus job_status = 3;
 }
 
 // ------------------------------------------------------------------
