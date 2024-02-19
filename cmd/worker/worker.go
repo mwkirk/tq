@@ -1,17 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"tq/internal/model"
 	"tq/pb"
 )
 
-func handleHeartbeat() {
-
-}
-
-func handleStatusResponse(sr *pb.StatusResponse, w *model.Worker, updates chan<- *pb.JobStatus) error {
+func handleStatusResponse(ctx context.Context, sr *pb.StatusResponse, w *model.Worker,
+	updates chan<- *pb.JobStatus) error {
 	switch sr.JobControl {
 	case pb.JobControl_JOB_CONTROL_NONE:
 		log.Printf("no job available")
@@ -19,7 +17,7 @@ func handleStatusResponse(sr *pb.StatusResponse, w *model.Worker, updates chan<-
 		log.Printf("continue current job")
 	case pb.JobControl_JOB_CONTROL_NEW:
 		log.Printf("new job")
-		err := startJob(sr.Job, updates)
+		err := startJob(ctx, sr.Job, updates)
 		if err != nil {
 			return err
 		}
@@ -34,7 +32,7 @@ func handleStatusResponse(sr *pb.StatusResponse, w *model.Worker, updates chan<-
 	return nil
 }
 
-func startJob(job *pb.Job, updates chan<- *pb.JobStatus) error {
+func startJob(ctx context.Context, job *pb.Job, updates chan<- *pb.JobStatus) error {
 	// guard
 	if job == nil {
 		return fmt.Errorf("no job data")
@@ -47,7 +45,7 @@ func startJob(job *pb.Job, updates chan<- *pb.JobStatus) error {
 		log.Printf("test job received")
 	case pb.JobKind_JOB_KIND_SLEEP:
 		workerJob := newWorkerSleepJob(job, updates)
-		workerJob.run()
+		workerJob.run(ctx)
 	case pb.JobKind_JOB_KIND_FFMPEG:
 		log.Printf("FFMPEG job received")
 	default:

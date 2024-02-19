@@ -16,6 +16,7 @@ var (
 	addr              = flag.String("addr", "localhost:8000", "server address")
 	label             = "foo"
 	heartbeatInterval = 2 * time.Second
+	timeout           = 30 * time.Second
 )
 
 func main() {
@@ -27,23 +28,27 @@ func main() {
 	}
 	defer conn.Close()
 	c := pb.NewTqWorkerClient(conn)
+	pctx := context.Background()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
-	defer cancel()
-
-	rr, err := c.Register(ctx, &pb.RegisterRequest{Label: label})
+	// Register
+	regCtx, regCancel := context.WithTimeout(pctx, timeout)
+	defer regCancel()
+	rr, err := c.Register(regCtx, &pb.RegisterRequest{Label: label})
 	if err != nil {
+		// todo: need retry mechanism
 		log.Fatalf("failed to connect: %v", err)
 	}
-
 	log.Printf("worker registered: %v, id: %v", rr.Registered, rr.Id)
 
+	// Update status
 	writeUpdates, readUpdates := internal.MakeNonblockingChanPair[*pb.JobStatus]()
-	done := make(chan struct{})
 	heartbeat := time.NewTicker(heartbeatInterval)
 	defer heartbeat.Stop()
+	statusLoopCtx, statusLoopCancel := context.WithCancel(pctx)
+	defer statusLoopCancel()
 
 	go func() {
+		currStatus := &pb.JobStatus{}
 		w := model.Worker{
 			Registered:  rr.Registered,
 			Id:          model.WorkerId(rr.Id),
@@ -54,10 +59,8 @@ func main() {
 		writeUpdates <- &pb.JobStatus{}
 
 		for {
-			var currStatus *pb.JobStatus
-
 			select {
-			case <-done:
+			case <-statusLoopCtx.Done():
 				log.Printf("exiting status goroutine")
 				return
 			case <-heartbeat.C:
@@ -83,7 +86,15 @@ func main() {
 					updates = append(updates, currStatus)
 				}
 
-				sr, err := c.Status(ctx, &pb.StatusRequest{
+				// todo: make more better
+				last := updates[len(updates)-1]
+				if last.JobState == pb.JobState_JOB_STATE_DONE_OK {
+					w.WorkerState = pb.WorkerState_WORKER_STATE_AVAILABLE
+				}
+
+				statusCtx, statusCancel := context.WithTimeout(statusLoopCtx, timeout)
+				defer statusCancel()
+				sr, err := c.Status(statusCtx, &pb.StatusRequest{
 					Id:          w.Id.String(),
 					WorkerState: w.WorkerState,
 					JobStatus:   updates,
@@ -92,7 +103,7 @@ func main() {
 				if err != nil {
 					log.Printf("error received from status request: %v", err)
 				} else {
-					err := handleStatusResponse(sr, &w, writeUpdates)
+					err := handleStatusResponse(statusLoopCtx, sr, &w, writeUpdates)
 					if err != nil {
 						log.Printf("%s", err)
 					}
@@ -101,8 +112,12 @@ func main() {
 		}
 	}()
 
-	<-done
-	dr, err := c.Deregister(ctx, &pb.DeregisterRequest{})
+	<-statusLoopCtx.Done()
+
+	// Deregister
+	deregCtx, deregCancel := context.WithTimeout(pctx, timeout)
+	defer deregCancel()
+	dr, err := c.Deregister(deregCtx, &pb.DeregisterRequest{})
 	if err != nil {
 		log.Fatalf("failed to degister: %v", err)
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"strconv"
 	"time"
 	"tq/pb"
@@ -18,7 +19,7 @@ func newWorkerSleepJob(jobMsg *pb.Job, updates chan<- *pb.JobStatus) *workerSlee
 	}
 }
 
-func (j *workerSleepJob) run() {
+func (j *workerSleepJob) run(ctx context.Context) {
 	duration, ok := j.jobMsg.Parms["duration"]
 	if !ok {
 		s := &pb.JobStatus{
@@ -46,14 +47,26 @@ func (j *workerSleepJob) run() {
 	go func() {
 		chunk := d / 10
 		for i := 0; i < d; i += chunk {
-			s := &pb.JobStatus{
-				JobState: pb.JobState_JOB_STATE_RUN,
-				Num:      j.jobMsg.Num,
-				Progress: float32(i) / float32(d),
-				Msg:      []string{"sleep job running"},
+			select {
+			case <-ctx.Done():
+				s := &pb.JobStatus{
+					JobState: pb.JobState_JOB_STATE_DONE_CANCEL,
+					Num:      j.jobMsg.Num,
+					Progress: float32(i) / float32(d),
+					Msg:      []string{"sleep job cancelling"},
+				}
+				j.updates <- s
+				return
+			default:
+				s := &pb.JobStatus{
+					JobState: pb.JobState_JOB_STATE_RUN,
+					Num:      j.jobMsg.Num,
+					Progress: float32(i) / float32(d),
+					Msg:      []string{"sleep job running"},
+				}
+				j.updates <- s
+				time.Sleep(time.Duration(chunk) * time.Second)
 			}
-			j.updates <- s
-			time.Sleep(time.Duration(chunk) * time.Second)
 		}
 
 		s := &pb.JobStatus{
