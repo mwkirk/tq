@@ -6,6 +6,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
+	"os/signal"
+	"syscall"
 	"time"
 	"tq/internal"
 	"tq/internal/model"
@@ -44,7 +46,9 @@ func main() {
 	writeUpdates, readUpdates := internal.MakeNonblockingChanPair[*pb.JobStatus]()
 	heartbeat := time.NewTicker(heartbeatInterval)
 	defer heartbeat.Stop()
-	statusLoopCtx, statusLoopCancel := context.WithCancel(pctx)
+	sigCtx, stop := signal.NotifyContext(pctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	statusLoopCtx, statusLoopCancel := context.WithCancel(sigCtx)
 	defer statusLoopCancel()
 
 	go func() {
@@ -117,7 +121,9 @@ func main() {
 	// Deregister
 	deregCtx, deregCancel := context.WithTimeout(pctx, timeout)
 	defer deregCancel()
-	dr, err := c.Deregister(deregCtx, &pb.DeregisterRequest{})
+	dr, err := c.Deregister(deregCtx, &pb.DeregisterRequest{
+		Id: rr.Id,
+	})
 	if err != nil {
 		log.Fatalf("failed to degister: %v", err)
 	}
