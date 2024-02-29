@@ -4,9 +4,16 @@ Copyright © 2024 Mark Kirk
 package cmd
 
 import (
+	"context"
 	"fmt"
-
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"log"
+	"strconv"
+	"time"
+	"tq/internal/model"
+	"tq/pb"
 )
 
 // cancelCmd represents the cancel command
@@ -15,21 +22,37 @@ var cancelCmd = &cobra.Command{
 	Short: "Cancel a job",
 	Long: `Cancel a job in the queue. The job is removed from the queue if still waiting 
 to be dispatched and killed on the worker if running'.`,
+	Args: cobra.MatchAll(cobra.ExactArgs(1), integerArgs),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("cancel called")
+		n, err := strconv.Atoi(args[0])
+		if err != nil {
+			// Should always be an int since validated
+			log.Fatalf("job number was not an integer")
+		}
+
+		fmt.Printf("cancel job %d \n", n)
+		cancel(model.JobNumber(n))
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(cancelCmd)
+}
 
-	// Here you will define your flags and configuration settings.
+func cancel(jobNum model.JobNumber) {
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+	c := pb.NewTqJobClient(conn)
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// cancelCmd.PersistentFlags().String("foo", "", "A help for foo")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
+	defer cancel()
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// cancelCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	cr, err := c.Cancel(ctx, &pb.CancelRequest{JobNum: uint32(jobNum)})
+	if err != nil {
+		log.Fatalf("failed to cancel job: %s\n", err)
+	}
+	fmt.Printf("cancelled job %d\n", cr.Accepted)
 }

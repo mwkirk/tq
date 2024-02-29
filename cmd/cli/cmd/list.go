@@ -15,21 +15,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// submitCmd represents the submit command
-var submitCmd = &cobra.Command{
-	Use:   "submit",
-	Short: "Submit a job to the queue",
-	Long:  `Submit a job the queue.`,
+// listCmd represents the list command
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List jobs",
+	Long:  `List waiting, running, and completed jobs`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("submit called")
+		fmt.Println("list called")
+		list()
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(submitCmd)
+	rootCmd.AddCommand(listCmd)
 }
 
-func submit(job pb.Job) {
+func list() {
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
@@ -40,9 +41,9 @@ func submit(job pb.Job) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
-	sr, err := c.Submit(ctx, &pb.SubmitRequest{Job: &job})
+	lr, err := c.List(ctx, &pb.ListRequest{})
 	if err != nil {
-		log.Fatalf("failed to submit job: %s\n", err)
+		log.Fatalf("failed to list jobs: %s\n", err)
 	}
-	fmt.Printf("submitted job %d\n", sr.JobNum)
+	fmt.Printf("listing jobs %v\n", lr.JobStatus)
 }
