@@ -90,9 +90,13 @@ func main() {
 					updates = append(updates, currStatus)
 				}
 
-				// todo: make more better
 				last := updates[len(updates)-1]
-				if last.JobState == pb.JobState_JOB_STATE_DONE_OK {
+				switch last.JobState {
+				case pb.JobState_JOB_STATE_DONE_OK:
+					fallthrough
+				case pb.JobState_JOB_STATE_DONE_ERR:
+					fallthrough
+				case pb.JobState_JOB_STATE_DONE_CANCEL:
 					w.WorkerState = pb.WorkerState_WORKER_STATE_AVAILABLE
 				}
 
