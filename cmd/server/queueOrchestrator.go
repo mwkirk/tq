@@ -13,9 +13,9 @@ type QueueOrchestrator interface {
 	Register(label string) (model.WorkerId, error)
 	Deregister(id model.WorkerId) error
 	Status(id model.WorkerId, state pb.WorkerState, status []*pb.JobStatus) (pb.StatusResponse, error)
-	Submit(job *pb.Job) error
+	Submit(job *pb.JobSpec) error
 	Cancel(jobNum int64) error
-	List() error
+	List() ([]*pb.JobStatus, error)
 }
 
 type SimpleQueueOrchestrator struct {
@@ -57,7 +57,7 @@ func (orc *SimpleQueueOrchestrator) Status(id model.WorkerId, workerState pb.Wor
 	}
 }
 
-func (orc *SimpleQueueOrchestrator) Submit(job *pb.Job) error {
+func (orc *SimpleQueueOrchestrator) Submit(job *pb.JobSpec) error {
 	return orc.jobMgr.Submit(job)
 }
 
@@ -66,7 +66,7 @@ func (orc *SimpleQueueOrchestrator) Cancel(jobNum int64) error {
 	panic("implement me")
 }
 
-func (orc *SimpleQueueOrchestrator) List() error {
+func (orc *SimpleQueueOrchestrator) List() ([]*pb.JobStatus, error) {
 	// TODO implement me
 	panic("implement me")
 }

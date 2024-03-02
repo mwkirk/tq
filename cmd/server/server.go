@@ -63,3 +63,12 @@ func (s *server) Submit(ctx context.Context, request *pb.SubmitRequest) (*pb.Sub
 	}
 	return &pb.SubmitResponse{Accepted: true, JobNum: request.Job.Num}, nil
 }
+
+func (s *server) Cancel(ctx context.Context, request *pb.CancelRequest) (*pb.CancelResponse, error) {
+	return nil, nil
+}
+
+func (s *server) List(ctx context.Context, request *pb.ListRequest) (*pb.ListResponse, error) {
+	var jobStats []*pb.JobStatus
+	return &pb.ListResponse{JobStatus: jobStats}, nil
+}

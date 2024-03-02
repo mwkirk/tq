@@ -5,10 +5,12 @@ package pb;
 
 enum JobState {
   JOB_STATE_NONE = 0;
-  JOB_STATE_RUN = 1;
-  JOB_STATE_DONE_OK = 2;
-  JOB_STATE_DONE_ERR = 3;
-  JOB_STATE_DONE_CANCEL = 4;
+  JOB_STATE_WAIT = 1;
+  JOB_STATE_RUN = 2;
+  JOB_STATE_DONE_OK = 4;
+  JOB_STATE_DONE_ERR = 8;
+  JOB_STATE_DONE_CANCEL = 16;
+  JOB_STATE_ALL = 31;
 }
 
 message JobStatus {
@@ -22,17 +24,17 @@ enum JobControl {
   JOB_CONTROL_NONE = 0;
   JOB_CONTROL_CONTINUE = 1;
   JOB_CONTROL_NEW = 2;
-  JOB_CONTROL_CANCEL = 3;
+  JOB_CONTROL_CANCEL = 4;
 }
 
 enum JobKind {
   JOB_KIND_NULL = 0;
   JOB_KIND_TEST = 1;
   JOB_KIND_SLEEP = 2;
-  JOB_KIND_FFMPEG = 3;
+  JOB_KIND_FFMPEG = 4;
 }
 
-message Job {
+message JobSpec {
   JobKind kind = 1;
   uint32 num = 2;
   string name = 3;

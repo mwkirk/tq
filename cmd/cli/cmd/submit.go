@@ -29,7 +29,7 @@ func init() {
 	rootCmd.AddCommand(submitCmd)
 }
 
-func submit(job pb.Job) {
+func submit(job pb.JobSpec) {
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)

@@ -23,9 +23,9 @@ func main() {
 	// wire up dependencies
 	ws := container.NewSimpleMapStore[model.WorkerId, *model.Worker]()
 	workerMgr := NewSimpleWorkerMgr(ws)
-	wq := container.NewSliceQueue[*pb.Job]()
-	rq := container.NewSliceQueue[*pb.Job]()
-	dq := container.NewSliceQueue[*pb.Job]()
+	wq := container.NewSliceQueue[*pb.JobSpec]()
+	rq := container.NewSliceQueue[*pb.JobSpec]()
+	dq := container.NewSliceQueue[*pb.JobSpec]()
 	aws := container.NewSimpleMapStore[model.JobNumber, model.WorkerId]()
 	jobMgr := NewSimpleJobMgr(wq, rq, dq, aws)
 	orc := NewSimpleQueueOrchestrator(workerMgr, jobMgr)

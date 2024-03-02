@@ -15,7 +15,7 @@ service TqJob {
 // Submit messages
 // ------------------------------------------------------------------
 message SubmitRequest {
-  Job job = 1;
+  JobSpec job = 1;
 }
 
 message SubmitResponse {
@@ -39,7 +39,18 @@ message CancelResponse {
 // List request messages
 // ------------------------------------------------------------------
 
+enum JobListFilter {
+  unspecified = 0;
+  waiting = 1;
+  running = 2;
+  done = 4;
+  all = 7;
+}
+
 message ListRequest {
+  // todo: filtering by at least waiting|running|done, perhaps globbing or regex?
+  int32 job_state_filter = 1;
+  int32 job_kind_filter = 2;
 }
 
 // ------------------------------------------------------------------
@@ -47,6 +58,8 @@ message ListRequest {
 // ------------------------------------------------------------------
 
 message ListResponse {
+  // todo: need either more info in JobStatus or may need another field(s). For example, need info about the
+  // worker that jobs are running on, etc.
   repeated JobStatus jobStatus = 1;
 }
 

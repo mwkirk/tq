@@ -8,11 +8,11 @@ import (
 )
 
 type workerSleepJob struct {
-	jobMsg  *pb.Job
+	jobMsg  *pb.JobSpec
 	updates chan<- *pb.JobStatus
 }
 
-func newWorkerSleepJob(jobMsg *pb.Job, updates chan<- *pb.JobStatus) *workerSleepJob {
+func newWorkerSleepJob(jobMsg *pb.JobSpec, updates chan<- *pb.JobStatus) *workerSleepJob {
 	return &workerSleepJob{
 		jobMsg:  jobMsg,
 		updates: updates,

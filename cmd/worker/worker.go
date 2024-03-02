@@ -32,7 +32,7 @@ func handleStatusResponse(ctx context.Context, sr *pb.StatusResponse, w *model.W
 	return nil
 }
 
-func startJob(ctx context.Context, job *pb.Job, updates chan<- *pb.JobStatus) error {
+func startJob(ctx context.Context, job *pb.JobSpec, updates chan<- *pb.JobStatus) error {
 	// guard
 	if job == nil {
 		return fmt.Errorf("no job data")
