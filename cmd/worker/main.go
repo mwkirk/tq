@@ -131,5 +131,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to degister: %v", err)
 	}
-	log.Printf("worker deregistered: %v", dr.GetRegistered())
+	log.Printf("worker deregistered: %v", dr.GetDeregistered())
 }

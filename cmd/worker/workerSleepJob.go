@@ -24,7 +24,7 @@ func (j *workerSleepJob) run(ctx context.Context) {
 	if !ok {
 		s := &pb.JobStatus{
 			JobState: pb.JobState_JOB_STATE_DONE_ERR,
-			Num:      j.jobMsg.Num,
+			JobNum:   j.jobMsg.JobNum,
 			Progress: 0,
 			Msg:      []string{"no duration specified for sleep job"},
 		}
@@ -36,7 +36,7 @@ func (j *workerSleepJob) run(ctx context.Context) {
 	if err != nil {
 		s := &pb.JobStatus{
 			JobState: pb.JobState_JOB_STATE_DONE_ERR,
-			Num:      j.jobMsg.Num,
+			JobNum:   j.jobMsg.JobNum,
 			Progress: 0,
 			Msg:      []string{"bad duration specified for sleep job"},
 		}
@@ -51,7 +51,7 @@ func (j *workerSleepJob) run(ctx context.Context) {
 			case <-ctx.Done():
 				s := &pb.JobStatus{
 					JobState: pb.JobState_JOB_STATE_DONE_CANCEL,
-					Num:      j.jobMsg.Num,
+					JobNum:   j.jobMsg.JobNum,
 					Progress: float32(i) / float32(d),
 					Msg:      []string{"sleep job cancelling"},
 				}
@@ -60,7 +60,7 @@ func (j *workerSleepJob) run(ctx context.Context) {
 			default:
 				s := &pb.JobStatus{
 					JobState: pb.JobState_JOB_STATE_RUN,
-					Num:      j.jobMsg.Num,
+					JobNum:   j.jobMsg.JobNum,
 					Progress: float32(i) / float32(d),
 					Msg:      []string{"sleep job running"},
 				}
@@ -71,7 +71,7 @@ func (j *workerSleepJob) run(ctx context.Context) {
 
 		s := &pb.JobStatus{
 			JobState: pb.JobState_JOB_STATE_DONE_OK,
-			Num:      j.jobMsg.Num,
+			JobNum:   j.jobMsg.JobNum,
 			Progress: 1.0,
 			Msg:      []string{"sleep job completed successfully"},
 		}

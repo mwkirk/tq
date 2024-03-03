@@ -29,7 +29,7 @@ func init() {
 	rootCmd.AddCommand(submitCmd)
 }
 
-func submit(job pb.JobSpec) {
+func submit(jobSpec pb.JobSpec) {
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
@@ -40,7 +40,7 @@ func submit(job pb.JobSpec) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
-	sr, err := c.Submit(ctx, &pb.SubmitRequest{Job: &job})
+	sr, err := c.Submit(ctx, &pb.SubmitRequest{JobSpec: &jobSpec})
 	if err != nil {
 		log.Fatalf("failed to submit job: %s\n", err)
 	}

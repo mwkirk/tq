@@ -31,7 +31,7 @@ message DeregisterRequest {
 }
 
 message DeregisterResponse {
-  bool registered = 1;
+  bool deregistered = 1;
 }
 
 

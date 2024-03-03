@@ -26,9 +26,9 @@ var sleepCmd = &cobra.Command{
 
 		fmt.Printf("sleep job of %d secs\n", sec)
 		j := pb.JobSpec{
-			Kind: pb.JobKind_JOB_KIND_SLEEP,
-			Num:  0,
-			Name: "sleep " + args[0],
+			Kind:   pb.JobKind_JOB_KIND_SLEEP,
+			JobNum: 0,
+			Name:   "sleep " + args[0],
 			Parms: map[string]string{
 				"duration": args[0],
 			},

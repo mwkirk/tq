@@ -45,5 +45,5 @@ func list() {
 	if err != nil {
 		log.Fatalf("failed to list jobs: %s\n", err)
 	}
-	fmt.Printf("listing jobs %v\n", lr.JobStatus)
+	fmt.Printf("listing jobs %v\n", lr)
 }

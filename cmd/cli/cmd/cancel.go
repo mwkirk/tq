@@ -54,5 +54,5 @@ func cancel(jobNum model.JobNumber) {
 	if err != nil {
 		log.Fatalf("failed to cancel job: %s\n", err)
 	}
-	fmt.Printf("cancelled job %d\n", cr.Accepted)
+	fmt.Printf("canceled job %d\n", cr.Canceled)
 }

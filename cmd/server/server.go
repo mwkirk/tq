@@ -41,7 +41,7 @@ func (s *server) Deregister(ctx context.Context, request *pb.DeregisterRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to deregister worker: %w", err)
 	}
-	return &pb.DeregisterResponse{Registered: false}, nil
+	return &pb.DeregisterResponse{Deregistered: false}, nil
 }
 
 func (s *server) Status(ctx context.Context, request *pb.StatusRequest) (*pb.StatusResponse, error) {
@@ -57,11 +57,11 @@ func (s *server) Status(ctx context.Context, request *pb.StatusRequest) (*pb.Sta
 // ------------------------------------------------------------------
 
 func (s *server) Submit(ctx context.Context, request *pb.SubmitRequest) (*pb.SubmitResponse, error) {
-	err := s.orc.Submit(request.Job)
+	err := s.orc.Submit(request.JobSpec)
 	if err != nil {
 		return &pb.SubmitResponse{Accepted: false}, err
 	}
-	return &pb.SubmitResponse{Accepted: true, JobNum: request.Job.Num}, nil
+	return &pb.SubmitResponse{Accepted: true, JobNum: request.JobSpec.JobNum}, nil
 }
 
 func (s *server) Cancel(ctx context.Context, request *pb.CancelRequest) (*pb.CancelResponse, error) {
@@ -69,6 +69,5 @@ func (s *server) Cancel(ctx context.Context, request *pb.CancelRequest) (*pb.Can
 }
 
 func (s *server) List(ctx context.Context, request *pb.ListRequest) (*pb.ListResponse, error) {
-	var jobStats []*pb.JobStatus
-	return &pb.ListResponse{JobStatus: jobStats}, nil
+	return &pb.ListResponse{}, nil
 }

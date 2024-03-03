@@ -15,7 +15,7 @@ enum JobState {
 
 message JobStatus {
   JobState job_state = 1;
-  uint32 num = 2;
+  uint32 job_num = 2;
   float progress = 3;
   repeated string msg = 4;
 }
@@ -36,7 +36,7 @@ enum JobKind {
 
 message JobSpec {
   JobKind kind = 1;
-  uint32 num = 2;
+  uint32 job_num = 2;
   string name = 3;
   map<string, string> parms = 4;
 }

@@ -15,23 +15,23 @@ service TqJob {
 // Submit messages
 // ------------------------------------------------------------------
 message SubmitRequest {
-  JobSpec job = 1;
+  JobSpec job_spec = 1;
 }
 
 message SubmitResponse {
   bool accepted = 1;
-  uint32 jobNum = 2;
+  uint32 job_num = 2;
 }
 
 // ------------------------------------------------------------------
 // Cancel messages
 // ------------------------------------------------------------------
 message CancelRequest {
-  uint32 jobNum = 1;
+  uint32 job_num = 1;
 }
 
 message CancelResponse {
-  bool accepted = 1;
+  bool canceled = 1;
 }
 
 
@@ -39,27 +39,33 @@ message CancelResponse {
 // List request messages
 // ------------------------------------------------------------------
 
-enum JobListFilter {
-  unspecified = 0;
-  waiting = 1;
-  running = 2;
-  done = 4;
-  all = 7;
-}
-
 message ListRequest {
-  // todo: filtering by at least waiting|running|done, perhaps globbing or regex?
   int32 job_state_filter = 1;
   int32 job_kind_filter = 2;
+  repeated uint32 job_nums = 3;
 }
 
 // ------------------------------------------------------------------
 // List response messages
 // ------------------------------------------------------------------
 
+
+//    job       state    kind    prog    name        worker                    msgs
+//    1234      run      ffmpeg   72%    sq300       node32.example.com        "transcoding..."
+message JobListItem {
+  uint32 job_num = 1;
+  JobState job_state = 2;
+  JobKind kind = 3;
+  float progress = 4;
+  string name = 5;
+  string worker = 6;
+  repeated string msg = 7;
+}
+
+
 message ListResponse {
-  // todo: need either more info in JobStatus or may need another field(s). For example, need info about the
-  // worker that jobs are running on, etc.
-  repeated JobStatus jobStatus = 1;
+  repeated JobListItem wait = 1;
+  repeated JobListItem run = 2;
+  repeated JobListItem done = 3;
 }
 

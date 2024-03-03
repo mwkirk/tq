@@ -98,26 +98,27 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (pb.StatusRespon
 	}
 
 	// Assign job to worker
-	err = orc.workerMgr.AssignJob(id, model.JobNumber(j.Num))
+	err = orc.workerMgr.AssignJob(id, model.JobNumber(j.JobNum))
 	if err != nil {
 		// If we can't assign the job to the worker, then try to put the job back in the wait queue.
 		// This could fail as well, of course, but we'll just swallow the error here since it's just for fun.
 		// A production system would need to be transactional.
 		_ = orc.jobMgr.EnqueueWait(j)
-		return pb.StatusResponse{}, fmt.Errorf("error assigning job %d to worker [%s]: %w", j.Num, id, err)
+		return pb.StatusResponse{}, fmt.Errorf("error assigning job %d to worker [%s]: %w", j.JobNum, id, err)
 	}
 
 	// Assign worker to job
 	err = orc.jobMgr.AssignWorker(j, id)
 	if err != nil {
 		// Again, only so much we can do to roll back to a correct state w/o a more transactional design
-		log.Printf("failed to assign job %d to worker [%s] and move to run queue", j.Num, id)
+		log.Printf("failed to assign job %d to worker [%s] and move to run queue", j.JobNum, id)
 		_ = orc.workerMgr.Reset(id)
-		return pb.StatusResponse{}, fmt.Errorf("error moving job %d to run queue and assigning worker: %w", j.Num, err)
+		return pb.StatusResponse{}, fmt.Errorf("error moving job %d to run queue and assigning worker: %w", j.JobNum,
+			err)
 	}
 
 	// Build the final response
-	log.Printf("dispatching job %d to worker [%s]", j.Num, id)
+	log.Printf("dispatching job %d to worker [%s]", j.JobNum, id)
 	return pb.StatusResponse{
 		JobControl: pb.JobControl_JOB_CONTROL_NEW,
 		Job:        j,
