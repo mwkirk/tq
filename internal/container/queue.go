@@ -13,6 +13,7 @@ type Queue[T any] interface {
 	Front() (T, error)
 	Back() (T, error)
 	Length() (int64, error)
+	Filter(func(T) bool) []T
 }
 
 type SliceQueue[T any] struct {
@@ -69,4 +70,17 @@ func (sq *SliceQueue[T]) Length() (int64, error) {
 	sq.l.RLock()
 	defer sq.l.RUnlock()
 	return int64(len(sq.s)), nil
+}
+
+func (sq *SliceQueue[T]) Filter(pred func(T) bool) []T {
+	var filtered []T
+	sq.l.RLock()
+	defer sq.l.RUnlock()
+
+	for _, v := range sq.s {
+		if ok := pred(v); ok {
+			filtered = append(filtered, v)
+		}
+	}
+	return filtered
 }
