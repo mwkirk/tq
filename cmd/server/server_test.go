@@ -28,11 +28,12 @@ func testingServer(ctx context.Context) (pb.TqWorkerClient, func()) {
 		WorkerState: 0,
 	})
 	workerMgr := NewSimpleWorkerMgr(ws)
-	wq := container.NewSliceQueue[*pb.Job]()
-	rq := container.NewSliceQueue[*pb.Job]()
-	dq := container.NewSliceQueue[*pb.Job]()
-	aws := container.NewSimpleMapStore[int64, model.WorkerId]()
-	jobMgr := NewSimpleJobMgr(wq, rq, dq, aws)
+	wq := container.NewSliceQueue[*pb.JobSpec]()
+	rq := container.NewSliceQueue[*pb.JobSpec]()
+	dq := container.NewSliceQueue[*pb.JobSpec]()
+	aws := container.NewSimpleMapStore[model.JobNumber, model.WorkerId]()
+	jhs := container.NewSimpleMapStore[model.JobNumber, []*pb.JobStatus]()
+	jobMgr := NewSimpleJobMgr(wq, rq, dq, aws, jhs)
 	orc := NewSimpleQueueOrchestrator(workerMgr, jobMgr)
 
 	srv := grpc.NewServer()
@@ -131,7 +132,7 @@ func TestTqServer_Deregister(t *testing.T) {
 			},
 			expected: expectation{
 				out: &pb.DeregisterResponse{
-					Registered: false,
+					Deregistered: true,
 				},
 				err: nil,
 			},
@@ -146,7 +147,7 @@ func TestTqServer_Deregister(t *testing.T) {
 					t.Errorf("Err -> \nWant: %q\nGot: %q\n", tt.expected.err, err)
 				}
 			} else {
-				if tt.expected.out.Registered != out.Registered {
+				if tt.expected.out.Deregistered != out.Deregistered {
 					t.Errorf("Out -> \nWant: %q\nGot: %q\n", tt.expected.out, out)
 				}
 			}

@@ -41,7 +41,7 @@ func (s *server) Deregister(ctx context.Context, request *pb.DeregisterRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to deregister worker: %w", err)
 	}
-	return &pb.DeregisterResponse{Deregistered: false}, nil
+	return &pb.DeregisterResponse{Deregistered: true}, nil
 }
 
 func (s *server) Status(ctx context.Context, request *pb.StatusRequest) (*pb.StatusResponse, error) {
@@ -69,5 +69,6 @@ func (s *server) Cancel(ctx context.Context, request *pb.CancelRequest) (*pb.Can
 }
 
 func (s *server) List(ctx context.Context, request *pb.ListRequest) (*pb.ListResponse, error) {
-	return &pb.ListResponse{}, nil
+	fmt.Printf("server: List called\n")
+	return s.orc.List(request)
 }
