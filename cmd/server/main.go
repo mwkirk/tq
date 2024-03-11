@@ -24,11 +24,11 @@ func main() {
 	ws := container.NewSimpleMapStore[model.WorkerId, *model.Worker]()
 	workerMgr := NewSimpleWorkerMgr(ws)
 	wq := container.NewSliceQueue[*pb.JobSpec]()
-	rq := container.NewSliceQueue[*pb.JobSpec]()
+	rm := container.NewSimpleMapStore[model.JobNumber, *pb.JobSpec]()
 	dq := container.NewSliceQueue[*pb.JobSpec]()
 	aws := container.NewSimpleMapStore[model.JobNumber, model.WorkerId]()
 	jhs := container.NewSimpleMapStore[model.JobNumber, []*pb.JobStatus]()
-	jobMgr := NewSimpleJobMgr(wq, rq, dq, aws, jhs)
+	jobMgr := NewSimpleJobMgr(wq, rm, dq, aws, jhs)
 	orc := NewSimpleQueueOrchestrator(workerMgr, jobMgr)
 
 	srv := grpc.NewServer()

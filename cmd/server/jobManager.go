@@ -20,6 +20,7 @@ type JobMgr interface {
 }
 
 type JobQueue container.Queue[*pb.JobSpec]
+type JobStore container.Store[model.JobNumber, *pb.JobSpec]
 type AssignedWorkerStore container.Store[model.JobNumber, model.WorkerId]
 type JobHistoryStore container.Store[model.JobNumber, []*pb.JobStatus]
 
@@ -27,17 +28,17 @@ type SimpleJobMgr struct {
 	l               sync.Mutex
 	jobNum          model.JobNumber // next JobNumber
 	wait            JobQueue        // queues of JobSpecs
-	run             JobQueue
+	run             JobStore
 	done            JobQueue
 	assignedWorkers AssignedWorkerStore // JobNumber -> WorkerId
 	jobHistory      JobHistoryStore     // JobNumber -> slices of JobStatus
 }
 
-func NewSimpleJobMgr(waitQueue JobQueue, runQueue JobQueue, doneQueue JobQueue,
+func NewSimpleJobMgr(waitQueue JobQueue, runStore JobStore, doneQueue JobQueue,
 	assignedWorkerStore AssignedWorkerStore, jobHistoryStore JobHistoryStore) *SimpleJobMgr {
 	return &SimpleJobMgr{
 		wait:            waitQueue,
-		run:             runQueue,
+		run:             runStore,
 		done:            doneQueue,
 		assignedWorkers: assignedWorkerStore,
 		jobHistory:      jobHistoryStore,
@@ -81,7 +82,7 @@ func (mgr *SimpleJobMgr) List(req *pb.ListRequest) (*pb.ListResponse, error) {
 }
 
 func (mgr *SimpleJobMgr) AssignWorker(job *pb.JobSpec, id model.WorkerId) error {
-	err := mgr.run.Enqueue(job)
+	err := mgr.run.Add(model.JobNumber(job.JobNum), job)
 	if err != nil {
 		return err
 	}
@@ -140,8 +141,8 @@ func (mgr *SimpleJobMgr) getLatestJobStatus(jobNum model.JobNumber) *pb.JobStatu
 	return h[len(h)-1]
 }
 
-func (mgr *SimpleJobMgr) getJobList(req *pb.ListRequest, q JobQueue) []*pb.JobListItem {
-	jobSpecs := q.Filter(func(spec *pb.JobSpec) bool {
+func (mgr *SimpleJobMgr) getJobList(req *pb.ListRequest, c container.Filterable[*pb.JobSpec]) []*pb.JobListItem {
+	jobSpecs := c.Filter(func(spec *pb.JobSpec) bool {
 		pred := func() bool {
 			if len(req.JobNums) == 0 {
 				return true

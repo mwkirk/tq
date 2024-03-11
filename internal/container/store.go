@@ -14,6 +14,7 @@ type Store[T comparable, U any] interface {
 	Add(T, U) error
 	Remove(T) error
 	Update(T, func(v U) U) error
+	Filter(func(U) bool) []U
 }
 
 type SimpleMapStore[T comparable, U any] struct {
@@ -67,4 +68,17 @@ func (s *SimpleMapStore[T, U]) Update(k T, f func(v U) U) error {
 	defer s.l.Unlock()
 	s.m[k] = f(s.m[k]) // todo: f() might fail, should handle this
 	return nil
+}
+
+func (s *SimpleMapStore[T, U]) Filter(pred func(U) bool) []U {
+	var filtered []U
+	s.l.RLock()
+	defer s.l.RUnlock()
+
+	for _, v := range s.m {
+		if ok := pred(v); ok {
+			filtered = append(filtered, v)
+		}
+	}
+	return filtered
 }
