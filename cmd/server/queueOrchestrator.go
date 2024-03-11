@@ -15,7 +15,7 @@ type QueueOrchestrator interface {
 	Status(id model.WorkerId, state pb.WorkerState, status []*pb.JobStatus) (pb.StatusResponse, error)
 	Submit(job *pb.JobSpec) error
 	Cancel(jobNum int64) error
-	List() ([]*pb.JobStatus, error)
+	List(request *pb.ListRequest) (*pb.ListResponse, error)
 }
 
 type SimpleQueueOrchestrator struct {
@@ -44,6 +44,24 @@ func (orc *SimpleQueueOrchestrator) Status(id model.WorkerId, workerState pb.Wor
 	jobStatus []*pb.JobStatus) (pb.StatusResponse, error) {
 	log.Printf("worker reported status [%s, %v]", id, workerState)
 
+	if len(jobStatus) > 0 {
+		n := model.JobNumber(jobStatus[0].JobNum)
+		err := orc.jobMgr.UpdateJobHistory(n, jobStatus)
+		if err != nil {
+			log.Printf("error updating job history: %s", err)
+		}
+
+		last := jobStatus[len(jobStatus)-1]
+		switch last.JobState {
+		case pb.JobState_JOB_STATE_DONE_OK:
+			fallthrough
+		case pb.JobState_JOB_STATE_DONE_ERR:
+			fallthrough
+		case pb.JobState_JOB_STATE_DONE_CANCEL:
+			orc.finish(last)
+		}
+	}
+
 	switch workerState {
 	case pb.WorkerState_WORKER_STATE_UNAVAILABLE:
 		return pb.StatusResponse{}, nil // no-op for now
@@ -66,9 +84,8 @@ func (orc *SimpleQueueOrchestrator) Cancel(jobNum int64) error {
 	panic("implement me")
 }
 
-func (orc *SimpleQueueOrchestrator) List() ([]*pb.JobStatus, error) {
-	// TODO implement me
-	panic("implement me")
+func (orc *SimpleQueueOrchestrator) List(request *pb.ListRequest) (*pb.ListResponse, error) {
+	return orc.jobMgr.List(request)
 }
 
 // ------------------------------------------------------------------
@@ -123,4 +140,9 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (pb.StatusRespon
 		JobControl: pb.JobControl_JOB_CONTROL_NEW,
 		Job:        j,
 	}, nil
+}
+
+func (orc *SimpleQueueOrchestrator) finish(status *pb.JobStatus) {
+	// run queue -> done queue
+
 }

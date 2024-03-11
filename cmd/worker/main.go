@@ -90,6 +90,7 @@ func main() {
 					updates = append(updates, currStatus)
 				}
 
+				// If job completes for any reason, set worker's state to available
 				last := updates[len(updates)-1]
 				switch last.JobState {
 				case pb.JobState_JOB_STATE_DONE_OK:

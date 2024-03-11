@@ -41,9 +41,29 @@ func list() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
-	lr, err := c.List(ctx, &pb.ListRequest{})
+	lr, err := c.List(ctx, &pb.ListRequest{
+		JobStateFilter: int32(pb.JobState_JOB_STATE_ALL),
+		JobKindFilter:  int32(pb.JobKind_JOB_KIND_TEST | pb.JobKind_JOB_KIND_SLEEP | pb.JobKind_JOB_KIND_FFMPEG),
+		JobNums:        nil,
+	})
 	if err != nil {
 		log.Fatalf("failed to list jobs: %s\n", err)
 	}
-	fmt.Printf("listing jobs %v\n", lr)
+
+	headerFmt := "%-9s %-6s %-6s %-3s %-10s %-8s %-20s\n"
+	jobFmt := "%-9d %-6s %-6s %3.0f%% %10.10s %20.20s %30.30s\n"
+	header := fmt.Sprintf(headerFmt, "job", "state", "kind", "prog", "name", "worker", "msgs")
+
+	fmt.Printf("Running:\n%s", header)
+	for _, v := range lr.Run {
+		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress, v.Name, v.Worker, v.Msg)
+	}
+	fmt.Printf("\nWaiting:\n")
+	for _, v := range lr.Wait {
+		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress, v.Name, v.Worker, v.Msg)
+	}
+	fmt.Printf("\nDone:\n")
+	for _, v := range lr.Done {
+		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress, v.Name, v.Worker, v.Msg)
+	}
 }
