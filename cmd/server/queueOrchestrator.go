@@ -142,7 +142,16 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (pb.StatusRespon
 	}, nil
 }
 
-func (orc *SimpleQueueOrchestrator) finish(status *pb.JobStatus) {
-	// run queue -> done queue
+func (orc *SimpleQueueOrchestrator) finish(status *pb.JobStatus) error {
+	id, err := orc.jobMgr.Finish(model.JobNumber(status.JobNum))
+	if err != nil {
+		return err
+	}
 
+	err = orc.workerMgr.Reset(id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

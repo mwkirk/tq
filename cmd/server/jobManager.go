@@ -17,12 +17,13 @@ type JobMgr interface {
 	UpdateJobHistory(model.JobNumber, []*pb.JobStatus) error
 	EnqueueWait(*pb.JobSpec) error
 	DequeueWait() (*pb.JobSpec, error)
+	Finish(number model.JobNumber) (model.WorkerId, error)
 }
 
 type JobQueue container.Queue[*pb.JobSpec]
-type JobStore container.Store[model.JobNumber, *pb.JobSpec]
-type AssignedWorkerStore container.Store[model.JobNumber, model.WorkerId]
-type JobHistoryStore container.Store[model.JobNumber, []*pb.JobStatus]
+type JobStore container.KVStore[model.JobNumber, *pb.JobSpec]
+type AssignedWorkerStore container.KVStore[model.JobNumber, model.WorkerId]
+type JobHistoryStore container.KVStore[model.JobNumber, []*pb.JobStatus]
 
 type SimpleJobMgr struct {
 	l               sync.Mutex
@@ -82,14 +83,14 @@ func (mgr *SimpleJobMgr) List(req *pb.ListRequest) (*pb.ListResponse, error) {
 }
 
 func (mgr *SimpleJobMgr) AssignWorker(job *pb.JobSpec, id model.WorkerId) error {
-	err := mgr.run.Add(model.JobNumber(job.JobNum), job)
+	err := mgr.run.Put(model.JobNumber(job.JobNum), job)
 	if err != nil {
 		return err
 	}
 
 	// With our crude implementation, there's not much that can be done to move the job back to the correct
 	// queue is this fails
-	return mgr.assignedWorkers.Add(model.JobNumber(job.JobNum), id)
+	return mgr.assignedWorkers.Put(model.JobNumber(job.JobNum), id)
 }
 
 func (mgr *SimpleJobMgr) UpdateJobHistory(jobNum model.JobNumber, jobStatus []*pb.JobStatus) error {
@@ -105,6 +106,30 @@ func (mgr *SimpleJobMgr) EnqueueWait(job *pb.JobSpec) error {
 
 func (mgr *SimpleJobMgr) DequeueWait() (*pb.JobSpec, error) {
 	return mgr.wait.Dequeue()
+}
+
+func (mgr *SimpleJobMgr) Finish(jobNum model.JobNumber) (model.WorkerId, error) {
+	id := mgr.getAssignedWorkerId(jobNum)
+
+	// remove job from run store
+	j, err := mgr.run.GetAndDelete(jobNum)
+	if err != nil {
+		return id, fmt.Errorf("failed to finish job: %w", err)
+	}
+
+	// and move to done queue
+	err = mgr.done.Enqueue(j)
+	if err != nil {
+		return id, fmt.Errorf("failed to finish job: %w", err)
+	}
+
+	// remove job number from assigned workers map
+	err = mgr.assignedWorkers.Delete(jobNum)
+	if err != nil {
+		return id, fmt.Errorf("failed to finish job: %w", err)
+	}
+
+	return id, nil
 }
 
 // ------------------------------------------------------------------

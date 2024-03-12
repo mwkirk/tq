@@ -17,7 +17,7 @@ type WorkerMgr interface {
 	Reset(id model.WorkerId) error
 }
 
-type WorkerStore container.Store[model.WorkerId, *model.Worker]
+type WorkerStore container.KVStore[model.WorkerId, *model.Worker]
 
 type SimpleWorkerMgr struct {
 	store WorkerStore
@@ -45,7 +45,7 @@ func (mgr *SimpleWorkerMgr) Register(label string) (model.WorkerId, error) {
 		Label:      label,
 	}
 
-	err = mgr.store.Add(id, w)
+	err = mgr.store.Put(id, w)
 	if err != nil {
 		return id, fmt.Errorf("failed to register worker: %w", err)
 	}
@@ -79,8 +79,8 @@ func (mgr *SimpleWorkerMgr) AssignJob(id model.WorkerId, jobNum model.JobNumber)
 
 func (mgr *SimpleWorkerMgr) Reset(id model.WorkerId) error {
 	return mgr.store.Update(id, func(w *model.Worker) *model.Worker {
-		w.JobNum = 0
-		w.WorkerState = pb.WorkerState_WORKER_STATE_UNAVAILABLE
+		w.JobNum = model.NullJobNumber
+		w.WorkerState = pb.WorkerState_WORKER_STATE_AVAILABLE
 		return w
 	})
 }

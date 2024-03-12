@@ -7,12 +7,13 @@ import (
 
 var ErrorNotFound = errors.New("not found")
 
-// Store might be implemented by a database or external service that could return an error
-type Store[T comparable, U any] interface {
+// KVStore might be implemented by a database or external service that could return an error
+type KVStore[T comparable, U any] interface {
 	Exists(T) (bool, error)
 	Get(T) (U, error)
-	Add(T, U) error
-	Remove(T) error
+	GetAndDelete(T) (U, error)
+	Put(T, U) error
+	Delete(T) error
 	Update(T, func(v U) U) error
 	Filter(func(U) bool) []U
 }
@@ -49,14 +50,26 @@ func (s *SimpleMapStore[T, U]) Get(k T) (U, error) {
 	return v, nil
 }
 
-func (s *SimpleMapStore[T, U]) Add(k T, v U) error {
+func (s *SimpleMapStore[T, U]) GetAndDelete(k T) (U, error) {
+	s.l.RLock()
+	defer s.l.RUnlock()
+	var v U
+	v, ok := s.m[k]
+	if !ok {
+		return v, ErrorNotFound
+	}
+	delete(s.m, k)
+	return v, nil
+}
+
+func (s *SimpleMapStore[T, U]) Put(k T, v U) error {
 	s.l.Lock()
 	defer s.l.Unlock()
 	s.m[k] = v
 	return nil
 }
 
-func (s *SimpleMapStore[T, U]) Remove(k T) error {
+func (s *SimpleMapStore[T, U]) Delete(k T) error {
 	s.l.Lock()
 	defer s.l.Unlock()
 	delete(s.m, k)

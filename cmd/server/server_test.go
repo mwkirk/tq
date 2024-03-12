@@ -21,7 +21,7 @@ func testingServer(ctx context.Context) (pb.TqWorkerClient, func()) {
 
 	// wire up dependencies
 	ws := container.NewSimpleMapStore[model.WorkerId, *model.Worker]()
-	ws.Add(fixtureId, &model.Worker{
+	ws.Put(fixtureId, &model.Worker{
 		Registered:  true,
 		Id:          fixtureId,
 		Label:       "fixture worker",
