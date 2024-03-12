@@ -56,14 +56,17 @@ func list() {
 
 	fmt.Printf("Running:\n%s", header)
 	for _, v := range lr.Run {
-		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress, v.Name, v.Worker, v.Msg)
+		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress*100, v.Name, v.Worker,
+			v.Msg)
 	}
 	fmt.Printf("\nWaiting:\n")
 	for _, v := range lr.Wait {
-		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress, v.Name, v.Worker, v.Msg)
+		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress*100, v.Name, v.Worker,
+			v.Msg)
 	}
 	fmt.Printf("\nDone:\n")
 	for _, v := range lr.Done {
-		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress, v.Name, v.Worker, v.Msg)
+		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress*100, v.Name, v.Worker,
+			v.Msg)
 	}
 }
