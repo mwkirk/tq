@@ -45,7 +45,7 @@ func (j *workerSleepJob) run(ctx context.Context) {
 	}
 
 	go func() {
-		chunk := d / 10
+		chunk := max(d/10, 1)
 		for i := 0; i < d; i += chunk {
 			select {
 			case <-ctx.Done():
