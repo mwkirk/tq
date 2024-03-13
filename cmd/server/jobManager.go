@@ -48,9 +48,28 @@ func NewSimpleJobMgr(waitQueue JobQueue, runStore JobStore, doneQueue JobQueue,
 
 // Submit assigns a new job number to a job and adds it to the wait queue
 func (mgr *SimpleJobMgr) Submit(job *pb.JobSpec) error {
-	job.JobNum = uint32(mgr.newJobNumber())
+	jobNum := mgr.newJobNumber()
+	job.JobNum = uint32(jobNum)
+	err := mgr.wait.Enqueue(job)
+	if err != nil {
+		return err
+	}
+
+	// create an initial JobStatus entry
+	status := &pb.JobStatus{
+		JobState: pb.JobState_JOB_STATE_WAIT,
+		JobNum:   job.JobNum,
+		Progress: 0.0,
+		Msg:      []string{"accepted"},
+	}
+
+	err = mgr.jobHistory.Put(jobNum, []*pb.JobStatus{status})
+	if err != nil {
+		return err
+	}
+
 	log.Printf("submitted job %v", job)
-	return mgr.wait.Enqueue(job)
+	return nil
 }
 
 func (mgr *SimpleJobMgr) Cancel(jobNum model.JobNumber) error {
