@@ -6,11 +6,12 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"time"
 	"tq/pb"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/spf13/cobra"
 )
@@ -21,7 +22,6 @@ var listCmd = &cobra.Command{
 	Short: "List jobs",
 	Long:  `List waiting, running, and completed jobs`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("list called")
 		list()
 	},
 }
@@ -53,23 +53,19 @@ func list() {
 		log.Fatalf("failed to list jobs: %s\n", err)
 	}
 
-	headerFmt := "%-9s %-6s %-6s %-3s %-10s %-8s %-20s\n"
 	jobFmt := "%-9d %-6s %-6s %3.0f%% %-10.10s %-20.20s %-30.30s\n"
+	headerFmt := "%-9s %-6s %-6s %-3s %-10s %-20.20s %-30.30s\n"
 	header := fmt.Sprintf(headerFmt, "job", "state", "kind", "prog", "name", "worker", "msgs")
+	fmt.Printf("%s", header)
 
-	fmt.Printf("Running:\n%s", header)
-	for _, v := range lr.Result.Run.Items {
-		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress*100, v.Name, v.Worker,
-			v.Msg)
+	printJobs := func(l *pb.JobList) {
+		for _, v := range l.Items {
+			fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress*100, v.Name, v.Worker,
+				v.Msg)
+		}
 	}
-	fmt.Printf("\nWaiting:\n")
-	for _, v := range lr.Result.Wait.Items {
-		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress*100, v.Name, v.Worker,
-			v.Msg)
-	}
-	fmt.Printf("\nDone:\n")
-	for _, v := range lr.Result.Done.Items {
-		fmt.Printf(jobFmt, v.JobNum, v.JobState.ShortDesc(), v.Kind.ShortDesc(), v.Progress*100, v.Name, v.Worker,
-			v.Msg)
-	}
+
+	printJobs(lr.Result.Run)
+	printJobs(lr.Result.Wait)
+	printJobs(lr.Result.Done)
 }
