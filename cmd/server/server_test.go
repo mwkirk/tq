@@ -108,6 +108,7 @@ func TestTqServer_Register(t *testing.T) {
 					t.Errorf("Err -> \nWant: %q\nGot: %q\n", tt.expected.err, err)
 				}
 			} else {
+				// todo: should also test workerId
 				if tt.expected.out.Result.Registered != out.Result.Registered {
 					t.Errorf("Out -> \nWant: %q\nGot: %q\n", tt.expected.out, out)
 				}

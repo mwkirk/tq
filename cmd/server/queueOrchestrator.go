@@ -32,7 +32,9 @@ func NewSimpleQueueOrchestrator(workerMgr WorkerMgr, jobMgr JobMgr) *SimpleQueue
 
 func (orc *SimpleQueueOrchestrator) Register(options *pb.RegisterOptions) (*pb.RegisterResult, error) {
 	id, err := orc.workerMgr.Register(options.Label)
-	return &pb.RegisterResult{WorkerId: string(id)}, err
+	return &pb.RegisterResult{
+		Registered: err == nil,
+		WorkerId: string(id)}, err
 }
 
 func (orc *SimpleQueueOrchestrator) Deregister(options *pb.DeregisterOptions) (*pb.DeregisterResult, error) {
