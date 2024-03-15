@@ -1,0 +1,63 @@
+{
+	"version": "2.0.0",
+	"cwd": "${workspaceFolder}",
+	"tasks": [
+		{
+			"type": "go",
+			"label": "go: build package",
+			"command": "build",
+			"args": [
+				"${fileDirname}"
+			],
+			"problemMatcher": [
+				"$go"
+			],
+			"group": {
+				"kind": "build"
+			},
+			"detail": "cd /Users/mkirk/work/golang/tq; go build ${fileDirname}"
+		},
+		{
+			"label": "make proto",
+			"command": "gmake",
+			"args": [
+				"proto"
+			],
+			"group": "build",
+			"type": "process"
+		},
+		{
+			"label": "make all",
+			"command": "gmake",
+			"args": [
+				"all"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"type": "process"
+		},
+		{
+			"label": "run",
+			"command": "go",
+			"args": [
+				"run",
+				"${file}"
+			],
+			"group": "build",
+			"type": "shell"
+		},
+		{
+			"label": "test",
+			"command": "go",
+			"args": [
+				"test",
+				"-v",
+				"./..."
+			],
+			"group": "test",
+			"type": "shell"
+		}
+	]
+}
