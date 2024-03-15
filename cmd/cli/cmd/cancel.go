@@ -50,9 +50,11 @@ func cancel(jobNum model.JobNumber) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
-	cr, err := c.Cancel(ctx, &pb.CancelRequest{JobNum: uint32(jobNum)})
+	options := pb.CancelOptions{JobNum: uint32(jobNum)}
+	cr, err := c.Cancel(ctx, &pb.CancelRequest{Options: &options})
 	if err != nil {
 		log.Fatalf("failed to cancel job: %s\n", err)
 	}
-	fmt.Printf("canceled job %d\n", cr.Canceled)
+
+	fmt.Printf("canceled job %v\n", cr.Result.JobStatus)
 }

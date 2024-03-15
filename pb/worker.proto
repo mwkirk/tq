@@ -3,41 +3,8 @@ option go_package = "tq/pb";
 
 package pb;
 
-import "shared.proto";
+import "job.proto";
 
-service TqWorker {
-  rpc Register (RegisterRequest) returns (RegisterResponse) {}
-  rpc Deregister (DeregisterRequest) returns (DeregisterResponse) {}
-  rpc Status (StatusRequest) returns (StatusResponse) {}
-}
-
-// ------------------------------------------------------------------
-// Register messages
-// ------------------------------------------------------------------
-message RegisterRequest {
-  string label = 1;
-}     
-
-message RegisterResponse {
-  bool registered = 1;
-  string id = 2;
-}   
-
-// ------------------------------------------------------------------
-// Deregister messages
-// ------------------------------------------------------------------
-message DeregisterRequest {
-  string id = 1;
-}
-
-message DeregisterResponse {
-  bool deregistered = 1;
-}
-
-
-// ------------------------------------------------------------------
-// Status request messages
-// ------------------------------------------------------------------
 enum WorkerState {
   WORKER_STATE_UNSPECIFIED = 0;
   WORKER_STATE_UNAVAILABLE = 1;
@@ -45,17 +12,43 @@ enum WorkerState {
   WORKER_STATE_WORKING = 3;
 }
 
+enum JobControl {
+  JOB_CONTROL_NONE = 0;
+  JOB_CONTROL_CONTINUE = 1;
+  JOB_CONTROL_NEW = 2;
+  JOB_CONTROL_CANCEL = 4;
+}
 
-message StatusRequest {
-  string id = 1;
+// ------------------------------------------------------------------
+// Request options / response result
+// ------------------------------------------------------------------
+
+message RegisterOptions {
+  string label = 1;
+}
+
+message RegisterResult {
+  bool registered = 1;
+  string worker_id = 2;
+}
+
+
+message DeregisterOptions {
+  string worker_id = 1;
+}
+
+message DeregisterResult {
+  bool deregistered = 1;
+}
+
+
+message StatusOptions {
+  string worker_id = 1;
   WorkerState worker_state = 2;
   repeated JobStatus job_status = 3;
 }
 
-// ------------------------------------------------------------------
-// Status response messages
-// ------------------------------------------------------------------
-message StatusResponse {
+message StatusResult {
   JobControl job_control = 1;
   optional JobSpec job = 2;
 }

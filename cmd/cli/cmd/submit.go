@@ -40,9 +40,15 @@ func submit(jobSpec pb.JobSpec) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
 	defer cancel()
 
-	sr, err := c.Submit(ctx, &pb.SubmitRequest{JobSpec: &jobSpec})
+	options := &pb.SubmitOptions{JobSpec: &jobSpec}
+
+	sr, err := c.Submit(ctx, &pb.SubmitRequest{Options: options})
 	if err != nil {
 		log.Fatalf("failed to submit job: %s\n", err)
 	}
-	fmt.Printf("submitted job %d\n", sr.JobNum)
+
+	// todo: make this nice
+	if sr.Result.Accepted {
+		fmt.Printf("submitted job %v\n", sr.Result.JobStatus)
+	}
 }

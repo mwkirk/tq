@@ -10,9 +10,9 @@ import (
 import "tq/internal/model"
 
 type JobMgr interface {
-	Submit(*pb.JobSpec) error
+	Submit(*pb.JobSpec) (*pb.SubmitResult, error)
 	Cancel(model.JobNumber) error
-	List(*pb.ListRequest) (*pb.ListResponse, error)
+	List(*pb.ListOptions) (*pb.ListResult, error)
 	AssignWorker(*pb.JobSpec, model.WorkerId) error
 	UpdateJobHistory(model.JobNumber, []*pb.JobStatus) error
 	EnqueueWait(*pb.JobSpec) error
@@ -47,29 +47,34 @@ func NewSimpleJobMgr(waitQueue JobQueue, runStore JobStore, doneQueue JobQueue,
 }
 
 // Submit assigns a new job number to a job and adds it to the wait queue
-func (mgr *SimpleJobMgr) Submit(job *pb.JobSpec) error {
+func (mgr *SimpleJobMgr) Submit(job *pb.JobSpec) (*pb.SubmitResult, error) {
+	result := &pb.SubmitResult{
+		Accepted: false,
+	}
 	jobNum := mgr.newJobNumber()
 	job.JobNum = uint32(jobNum)
 	err := mgr.wait.Enqueue(job)
 	if err != nil {
-		return err
+		return result, err
 	}
 
 	// create an initial JobStatus entry
 	status := &pb.JobStatus{
 		JobState: pb.JobState_JOB_STATE_WAIT,
-		JobNum:   job.JobNum,
+		JobNum:   uint32(jobNum),
 		Progress: 0.0,
 		Msg:      []string{"accepted"},
 	}
 
 	err = mgr.jobHistory.Put(jobNum, []*pb.JobStatus{status})
 	if err != nil {
-		return err
+		return result, err
 	}
 
-	log.Printf("submitted job %v", job)
-	return nil
+	result.Accepted = true
+	result.JobStatus = status
+	log.Printf("accepted job %v", result)
+	return result, err
 }
 
 func (mgr *SimpleJobMgr) Cancel(jobNum model.JobNumber) error {
@@ -78,23 +83,24 @@ func (mgr *SimpleJobMgr) Cancel(jobNum model.JobNumber) error {
 }
 
 // List lists jobs filtered by the job state, job kind, and job numbers
-func (mgr *SimpleJobMgr) List(req *pb.ListRequest) (*pb.ListResponse, error) {
-	resp := &pb.ListResponse{
+func (mgr *SimpleJobMgr) List(options *pb.ListOptions) (*pb.ListResult, error) {
+	resp := &pb.ListResult{
 		Wait: nil,
 		Run:  nil,
 		Done: nil,
 	}
 
-	if req.JobStateFilter&int32(pb.JobState_JOB_STATE_WAIT) != 0 {
-		resp.Wait = mgr.getJobList(req, mgr.wait)
+	if options.JobFilter.JobStateFilter&int32(pb.JobState_JOB_STATE_WAIT) != 0 {
+		resp.Wait = mgr.getJobList(options, mgr.wait)
 	}
 
-	if req.JobStateFilter&int32(pb.JobState_JOB_STATE_RUN) != 0 {
-		resp.Run = mgr.getJobList(req, mgr.run)
+	if options.JobFilter.JobStateFilter&int32(pb.JobState_JOB_STATE_RUN) != 0 {
+		resp.Run = mgr.getJobList(options, mgr.run)
 	}
 
-	if req.JobStateFilter&int32(pb.JobState_JOB_STATE_DONE_OK|pb.JobState_JOB_STATE_DONE_ERR|pb.JobState_JOB_STATE_DONE_CANCEL) != 0 {
-		resp.Done = mgr.getJobList(req, mgr.done)
+	if options.JobFilter.JobStateFilter&int32(pb.JobState_JOB_STATE_DONE_OK|pb.JobState_JOB_STATE_DONE_ERR|pb.
+		JobState_JOB_STATE_DONE_CANCEL) != 0 {
+		resp.Done = mgr.getJobList(options, mgr.done)
 	}
 
 	fmt.Printf("List: %v\n", resp)
@@ -185,14 +191,14 @@ func (mgr *SimpleJobMgr) getLatestJobStatus(jobNum model.JobNumber) *pb.JobStatu
 	return h[len(h)-1]
 }
 
-func (mgr *SimpleJobMgr) getJobList(req *pb.ListRequest, c container.Filterable[*pb.JobSpec]) []*pb.JobListItem {
+func (mgr *SimpleJobMgr) getJobList(options *pb.ListOptions, c container.Filterable[*pb.JobSpec]) *pb.JobList {
 	jobSpecs := c.Filter(func(spec *pb.JobSpec) bool {
 		pred := func() bool {
-			if len(req.JobNums) == 0 {
+			if len(options.JobFilter.JobNums) == 0 {
 				return true
 			}
 
-			for _, n := range req.JobNums {
+			for _, n := range options.JobFilter.JobNums {
 				if spec.JobNum == n {
 					return true
 				}
@@ -200,13 +206,13 @@ func (mgr *SimpleJobMgr) getJobList(req *pb.ListRequest, c container.Filterable[
 			return false
 		}
 
-		if req.JobKindFilter&int32(spec.Kind) != 0 && pred() {
+		if options.JobFilter.JobKindFilter&int32(spec.Kind) != 0 && pred() {
 			return true
 		}
 		return false
 	})
 
-	jobList := make([]*pb.JobListItem, 0, len(jobSpecs))
+	items := make([]*pb.JobListItem, 0, len(jobSpecs))
 	for _, spec := range jobSpecs {
 		jobNum := model.JobNumber(spec.JobNum)
 		js := mgr.getLatestJobStatus(jobNum)
@@ -220,7 +226,7 @@ func (mgr *SimpleJobMgr) getJobList(req *pb.ListRequest, c container.Filterable[
 			Msg:      js.Msg,
 		}
 
-		jobList = append(jobList, item)
+		items = append(items, item)
 	}
-	return jobList
+	return &pb.JobList{Items: items}
 }

@@ -1,0 +1,45 @@
+syntax = "proto3";
+option go_package = "tq/pb";
+
+package pb;
+
+import "worker.proto";
+
+service TqWorker {
+  rpc Register (RegisterRequest) returns (RegisterResponse) {}
+  rpc Deregister (DeregisterRequest) returns (DeregisterResponse) {}
+  rpc Status (StatusRequest) returns (StatusResponse) {}
+}
+
+// ------------------------------------------------------------------
+// Register messages
+// ------------------------------------------------------------------
+message RegisterRequest {
+  RegisterOptions options = 1;
+}
+
+message RegisterResponse {
+  RegisterResult result = 1;
+}
+
+// ------------------------------------------------------------------
+// Deregister messages
+// ------------------------------------------------------------------
+message DeregisterRequest {
+  DeregisterOptions options = 1;
+}
+
+message DeregisterResponse {
+  DeregisterResult result = 1;
+}
+
+// ------------------------------------------------------------------
+// Status messages
+// ------------------------------------------------------------------
+message StatusRequest {
+  StatusOptions options = 1;
+}
+
+message StatusResponse {
+  StatusResult result = 1;
+}

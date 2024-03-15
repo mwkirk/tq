@@ -10,12 +10,12 @@ import (
 )
 
 type QueueOrchestrator interface {
-	Register(label string) (model.WorkerId, error)
-	Deregister(id model.WorkerId) error
-	Status(id model.WorkerId, state pb.WorkerState, status []*pb.JobStatus) (pb.StatusResponse, error)
-	Submit(job *pb.JobSpec) error
-	Cancel(jobNum int64) error
-	List(request *pb.ListRequest) (*pb.ListResponse, error)
+	Register(*pb.RegisterOptions) (*pb.RegisterResult, error)
+	Deregister(*pb.DeregisterOptions) (*pb.DeregisterResult, error)
+	Status(*pb.StatusOptions) (*pb.StatusResult, error)
+	Submit(*pb.SubmitOptions) (*pb.SubmitResult, error)
+	Cancel(*pb.CancelOptions) (*pb.CancelResult, error)
+	List(*pb.ListOptions) (*pb.ListResult, error)
 }
 
 type SimpleQueueOrchestrator struct {
@@ -30,28 +30,29 @@ func NewSimpleQueueOrchestrator(workerMgr WorkerMgr, jobMgr JobMgr) *SimpleQueue
 	}
 }
 
-func (orc *SimpleQueueOrchestrator) Register(label string) (model.WorkerId, error) {
-	// simple delegation for now
-	return orc.workerMgr.Register(label)
+func (orc *SimpleQueueOrchestrator) Register(options *pb.RegisterOptions) (*pb.RegisterResult, error) {
+	id, err := orc.workerMgr.Register(options.Label)
+	return &pb.RegisterResult{WorkerId: string(id)}, err
 }
 
-func (orc *SimpleQueueOrchestrator) Deregister(id model.WorkerId) error {
-	// simple delegation for now
-	return orc.workerMgr.Deregister(id)
+func (orc *SimpleQueueOrchestrator) Deregister(options *pb.DeregisterOptions) (*pb.DeregisterResult, error) {
+	err := orc.workerMgr.Deregister(model.WorkerId(options.WorkerId))
+	return &pb.DeregisterResult{
+		Deregistered: err == nil,
+	}, err
 }
 
-func (orc *SimpleQueueOrchestrator) Status(id model.WorkerId, workerState pb.WorkerState,
-	jobStatus []*pb.JobStatus) (pb.StatusResponse, error) {
-	log.Printf("worker reported status [%s, %v]", id, workerState)
+func (orc *SimpleQueueOrchestrator) Status(options *pb.StatusOptions) (*pb.StatusResult, error) {
+	log.Printf("worker reported status [%s, %v]", options.WorkerId, options.WorkerState)
 
-	if len(jobStatus) > 0 {
-		n := model.JobNumber(jobStatus[0].JobNum)
-		err := orc.jobMgr.UpdateJobHistory(n, jobStatus)
+	if len(options.JobStatus) > 0 {
+		n := model.JobNumber(options.JobStatus[0].JobNum)
+		err := orc.jobMgr.UpdateJobHistory(n, options.JobStatus)
 		if err != nil {
 			log.Printf("error updating job history: %s", err)
 		}
 
-		last := jobStatus[len(jobStatus)-1]
+		last := options.JobStatus[len(options.JobStatus)-1]
 		switch last.JobState {
 		case pb.JobState_JOB_STATE_DONE_OK:
 			fallthrough
@@ -62,30 +63,31 @@ func (orc *SimpleQueueOrchestrator) Status(id model.WorkerId, workerState pb.Wor
 		}
 	}
 
-	switch workerState {
+	switch options.WorkerState {
 	case pb.WorkerState_WORKER_STATE_UNAVAILABLE:
-		return pb.StatusResponse{}, nil // no-op for now
+		return &pb.StatusResult{}, nil // no-op for now
 	case pb.WorkerState_WORKER_STATE_AVAILABLE:
-		return orc.dispatch(id)
+		return orc.dispatch(model.WorkerId(options.WorkerId))
 	case pb.WorkerState_WORKER_STATE_WORKING:
-		log.Printf("worker working [%s, %v]", id, jobStatus)
-		return pb.StatusResponse{JobControl: pb.JobControl_JOB_CONTROL_CONTINUE}, nil
+		log.Printf("worker working [%s, %v]", options.WorkerId, options.JobStatus)
+		return &pb.StatusResult{JobControl: pb.JobControl_JOB_CONTROL_CONTINUE}, nil
 	default:
-		return pb.StatusResponse{}, fmt.Errorf("bad worker state [%s, %v]. THIS SHOULD NOT HAPPEN", id, workerState)
+		return &pb.StatusResult{}, fmt.Errorf("bad worker state [%s, %v]. THIS SHOULD NOT HAPPEN", options.WorkerId,
+			options.WorkerState)
 	}
 }
 
-func (orc *SimpleQueueOrchestrator) Submit(job *pb.JobSpec) error {
-	return orc.jobMgr.Submit(job)
+func (orc *SimpleQueueOrchestrator) Submit(options *pb.SubmitOptions) (*pb.SubmitResult, error) {
+	return orc.jobMgr.Submit(options.JobSpec)
 }
 
-func (orc *SimpleQueueOrchestrator) Cancel(jobNum int64) error {
+func (orc *SimpleQueueOrchestrator) Cancel(options *pb.CancelOptions) (*pb.CancelResult, error) {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (orc *SimpleQueueOrchestrator) List(request *pb.ListRequest) (*pb.ListResponse, error) {
-	return orc.jobMgr.List(request)
+func (orc *SimpleQueueOrchestrator) List(options *pb.ListOptions) (*pb.ListResult, error) {
+	return orc.jobMgr.List(options)
 }
 
 // ------------------------------------------------------------------
@@ -93,14 +95,14 @@ func (orc *SimpleQueueOrchestrator) List(request *pb.ListRequest) (*pb.ListRespo
 // ------------------------------------------------------------------
 
 // Dispatch a job to an available worker
-func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (pb.StatusResponse, error) {
+func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (*pb.StatusResult, error) {
 	// guard - do we know about this worker?
 	_, err := orc.workerMgr.Exists(id)
 	if err != nil {
 		if errors.Is(err, container.ErrorNotFound) {
 			log.Printf("status error: unknown worker [%s]", id)
 		}
-		return pb.StatusResponse{}, err
+		return &pb.StatusResult{}, err
 	}
 
 	// Dequeue a job from the wait queue (safe) to prevent another goroutine from grabbing it.
@@ -109,9 +111,9 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (pb.StatusRespon
 	if err != nil {
 		if errors.Is(err, container.ErrorQueueEmpty) {
 			log.Printf("no jobs waiting")
-			return pb.StatusResponse{JobControl: pb.JobControl_JOB_CONTROL_NONE}, nil
+			return &pb.StatusResult{JobControl: pb.JobControl_JOB_CONTROL_NONE}, nil
 		}
-		return pb.StatusResponse{JobControl: pb.JobControl_JOB_CONTROL_NONE}, err
+		return &pb.StatusResult{JobControl: pb.JobControl_JOB_CONTROL_NONE}, err
 	}
 
 	// Assign job to worker
@@ -121,7 +123,7 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (pb.StatusRespon
 		// This could fail as well, of course, but we'll just swallow the error here since it's just for fun.
 		// A production system would need to be transactional.
 		_ = orc.jobMgr.EnqueueWait(j)
-		return pb.StatusResponse{}, fmt.Errorf("error assigning job %d to worker [%s]: %w", j.JobNum, id, err)
+		return &pb.StatusResult{}, fmt.Errorf("error assigning job %d to worker [%s]: %w", j.JobNum, id, err)
 	}
 
 	// Assign worker to job
@@ -130,13 +132,13 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (pb.StatusRespon
 		// Again, only so much we can do to roll back to a correct state w/o a more transactional design
 		log.Printf("failed to assign job %d to worker [%s] and move to run queue", j.JobNum, id)
 		_ = orc.workerMgr.Reset(id)
-		return pb.StatusResponse{}, fmt.Errorf("error moving job %d to run queue and assigning worker: %w", j.JobNum,
+		return &pb.StatusResult{}, fmt.Errorf("error moving job %d to run queue and assigning worker: %w", j.JobNum,
 			err)
 	}
 
 	// Build the final response
 	log.Printf("dispatching job %d to worker [%s]", j.JobNum, id)
-	return pb.StatusResponse{
+	return &pb.StatusResult{
 		JobControl: pb.JobControl_JOB_CONTROL_NEW,
 		Job:        j,
 	}, nil

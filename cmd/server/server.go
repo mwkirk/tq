@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"tq/internal/model"
 	"tq/pb"
 )
 
@@ -25,31 +24,28 @@ func newServer(orc QueueOrchestrator) *server {
 // ------------------------------------------------------------------
 
 func (s *server) Register(ctx context.Context, request *pb.RegisterRequest) (*pb.RegisterResponse, error) {
-	id, err := s.orc.Register(request.Label)
+	result, err := s.orc.Register(request.Options)
 	if err != nil {
-		return nil, fmt.Errorf("failed to register worker: %w", err)
+		err = fmt.Errorf("failed to register worker: %w", err)
 	}
 
-	return &pb.RegisterResponse{
-		Registered: true,
-		Id:         id.String(),
-	}, nil
+	return &pb.RegisterResponse{Result: result}, err
 }
 
 func (s *server) Deregister(ctx context.Context, request *pb.DeregisterRequest) (*pb.DeregisterResponse, error) {
-	err := s.orc.Deregister(model.WorkerId(request.Id))
+	result, err := s.orc.Deregister(request.Options)
 	if err != nil {
-		return nil, fmt.Errorf("failed to deregister worker: %w", err)
+		err = fmt.Errorf("failed to deregister worker: %w", err)
 	}
-	return &pb.DeregisterResponse{Deregistered: true}, nil
+	return &pb.DeregisterResponse{Result: result}, err
 }
 
 func (s *server) Status(ctx context.Context, request *pb.StatusRequest) (*pb.StatusResponse, error) {
-	sr, err := s.orc.Status(model.WorkerId(request.Id), request.WorkerState, request.JobStatus)
+	result, err := s.orc.Status(request.Options)
 	if err != nil {
-		return nil, fmt.Errorf("status update failed for worker: %w", err)
+		err = fmt.Errorf("status update failed for worker: %w", err)
 	}
-	return &sr, nil
+	return &pb.StatusResponse{Result: result}, err
 }
 
 // ------------------------------------------------------------------
@@ -57,11 +53,11 @@ func (s *server) Status(ctx context.Context, request *pb.StatusRequest) (*pb.Sta
 // ------------------------------------------------------------------
 
 func (s *server) Submit(ctx context.Context, request *pb.SubmitRequest) (*pb.SubmitResponse, error) {
-	err := s.orc.Submit(request.JobSpec)
+	result, err := s.orc.Submit(request.Options)
 	if err != nil {
-		return &pb.SubmitResponse{Accepted: false}, err
+		err = fmt.Errorf("job submission failed: %w", err)
 	}
-	return &pb.SubmitResponse{Accepted: true, JobNum: request.JobSpec.JobNum}, nil
+	return &pb.SubmitResponse{Result: result}, err
 }
 
 func (s *server) Cancel(ctx context.Context, request *pb.CancelRequest) (*pb.CancelResponse, error) {
@@ -69,6 +65,9 @@ func (s *server) Cancel(ctx context.Context, request *pb.CancelRequest) (*pb.Can
 }
 
 func (s *server) List(ctx context.Context, request *pb.ListRequest) (*pb.ListResponse, error) {
-	fmt.Printf("server: List called\n")
-	return s.orc.List(request)
+	result, err := s.orc.List(request.Options)
+	if err != nil {
+		err = fmt.Errorf("job list failed: %w", err)
+	}
+	return &pb.ListResponse{Result: result}, err
 }

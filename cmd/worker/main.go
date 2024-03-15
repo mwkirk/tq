@@ -35,12 +35,12 @@ func main() {
 	// Register
 	regCtx, regCancel := context.WithTimeout(pctx, timeout)
 	defer regCancel()
-	rr, err := c.Register(regCtx, &pb.RegisterRequest{Label: label})
+	rr, err := c.Register(regCtx, &pb.RegisterRequest{Options: &pb.RegisterOptions{Label: label}})
 	if err != nil {
 		// todo: need retry mechanism
 		log.Fatalf("failed to connect: %v", err)
 	}
-	log.Printf("worker registered: %v, id: %v", rr.Registered, rr.Id)
+	log.Printf("worker registered: %v, id: %v", rr.Result.Registered, rr.Result.WorkerId)
 
 	// Update status
 	writeUpdates, readUpdates := internal.MakeNonblockingChanPair[*pb.JobStatus]()
@@ -54,8 +54,8 @@ func main() {
 	go func() {
 		currStatus := &pb.JobStatus{}
 		w := model.Worker{
-			Registered:  rr.Registered,
-			Id:          model.WorkerId(rr.Id),
+			Registered:  rr.Result.Registered,
+			Id:          model.WorkerId(rr.Result.WorkerId),
 			Label:       label,
 			WorkerState: pb.WorkerState_WORKER_STATE_AVAILABLE,
 		}
@@ -104,10 +104,11 @@ func main() {
 				statusCtx, statusCancel := context.WithTimeout(statusLoopCtx, timeout)
 				defer statusCancel()
 				sr, err := c.Status(statusCtx, &pb.StatusRequest{
-					Id:          w.Id.String(),
-					WorkerState: w.WorkerState,
-					JobStatus:   updates,
-				})
+					Options: &pb.StatusOptions{
+						WorkerId:    w.Id.String(),
+						WorkerState: w.WorkerState,
+						JobStatus:   updates,
+					}})
 
 				if err != nil {
 					log.Printf("error received from status request: %v", err)
@@ -126,11 +127,10 @@ func main() {
 	// Deregister
 	deregCtx, deregCancel := context.WithTimeout(pctx, timeout)
 	defer deregCancel()
-	dr, err := c.Deregister(deregCtx, &pb.DeregisterRequest{
-		Id: rr.Id,
-	})
+	dr, err := c.Deregister(deregCtx,
+		&pb.DeregisterRequest{Options: &pb.DeregisterOptions{WorkerId: rr.Result.WorkerId}})
 	if err != nil {
 		log.Fatalf("failed to degister: %v", err)
 	}
-	log.Printf("worker deregistered: %v", dr.GetDeregistered())
+	log.Printf("worker deregistered: %v", dr.Result.Deregistered)
 }

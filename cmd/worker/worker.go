@@ -10,14 +10,14 @@ import (
 
 func handleStatusResponse(ctx context.Context, sr *pb.StatusResponse, w *model.Worker,
 	updates chan<- *pb.JobStatus) error {
-	switch sr.JobControl {
+	switch sr.Result.JobControl {
 	case pb.JobControl_JOB_CONTROL_NONE:
 		log.Printf("no job available")
 	case pb.JobControl_JOB_CONTROL_CONTINUE:
 		log.Printf("continue current job")
 	case pb.JobControl_JOB_CONTROL_NEW:
 		log.Printf("new job")
-		err := startJob(ctx, sr.Job, updates)
+		err := startJob(ctx, sr.Result.Job, updates)
 		if err != nil {
 			return err
 		}

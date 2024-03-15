@@ -1,0 +1,55 @@
+syntax = "proto3";
+option go_package = "tq/pb";
+
+package pb;
+
+import "job.proto";
+
+service TqJob {
+  rpc Submit (SubmitRequest) returns (SubmitResponse) {}
+  rpc Cancel (CancelRequest) returns (CancelResponse) {}
+  rpc List (ListRequest) returns (ListResponse) {}
+}
+
+// Lots of refactoring...
+// Based on the Protobuf API Best Practices doc (https://protobuf.dev/programming-guides/api/),
+// the requests/responses have been refactored to not include primitive types and be containers
+// for other messages. In the ongoing exploration of whether to use protobufs as domain
+// objects, this doc recommends creating shared "domain" protos that are included in req/resp
+// protos and writing application logic in terms of those types rather than req/resp types.
+// This should improve separation of the server/wire and application layers. The doc also
+// recommends distinguishing between wire and storage messages, but not quite there yet...
+
+
+// ------------------------------------------------------------------
+// Submit messages
+// ------------------------------------------------------------------
+message SubmitRequest {
+  SubmitOptions options  = 1;
+}
+
+message SubmitResponse {
+  SubmitResult result = 1;
+}
+
+// ------------------------------------------------------------------
+// Cancel messages
+// ------------------------------------------------------------------
+message CancelRequest {
+  CancelOptions options = 1;
+}
+
+message CancelResponse {
+  CancelResult result = 1;
+}
+
+// ------------------------------------------------------------------
+// List messages
+// ------------------------------------------------------------------
+message ListRequest {
+  ListOptions options = 1;
+}
+
+message ListResponse {
+  ListResult result = 1;
+}

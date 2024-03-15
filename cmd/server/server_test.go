@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/test/bufconn"
 	"log"
 	"net"
 	"testing"
 	"tq/internal/container"
 	"tq/internal/model"
 	"tq/pb"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 const fixtureId = "e0df68b9-3d33-4262-8af6-71516108ea2d"
@@ -29,11 +30,11 @@ func testingServer(ctx context.Context) (pb.TqWorkerClient, func()) {
 	})
 	workerMgr := NewSimpleWorkerMgr(ws)
 	wq := container.NewSliceQueue[*pb.JobSpec]()
-	rq := container.NewSliceQueue[*pb.JobSpec]()
+	rm := container.NewSimpleMapStore[model.JobNumber, *pb.JobSpec]()
 	dq := container.NewSliceQueue[*pb.JobSpec]()
 	aws := container.NewSimpleMapStore[model.JobNumber, model.WorkerId]()
 	jhs := container.NewSimpleMapStore[model.JobNumber, []*pb.JobStatus]()
-	jobMgr := NewSimpleJobMgr(wq, rq, dq, aws, jhs)
+	jobMgr := NewSimpleJobMgr(wq, rm, dq, aws, jhs)
 	orc := NewSimpleQueueOrchestrator(workerMgr, jobMgr)
 
 	srv := grpc.NewServer()
@@ -83,12 +84,16 @@ func TestTqServer_Register(t *testing.T) {
 	}{
 		"Successful_Register": {
 			in: &pb.RegisterRequest{
-				Label: "test worker",
+				Options: &pb.RegisterOptions{
+					Label: "test worker",
+				},
 			},
 			expected: expectation{
 				out: &pb.RegisterResponse{
-					Registered: true,
-					Id:         "testId",
+					Result: &pb.RegisterResult{
+						Registered: true,
+						WorkerId:   fixtureId,
+					},
 				},
 				err: nil,
 			},
@@ -103,7 +108,7 @@ func TestTqServer_Register(t *testing.T) {
 					t.Errorf("Err -> \nWant: %q\nGot: %q\n", tt.expected.err, err)
 				}
 			} else {
-				if tt.expected.out.Registered != out.Registered {
+				if tt.expected.out.Result.Registered != out.Result.Registered {
 					t.Errorf("Out -> \nWant: %q\nGot: %q\n", tt.expected.out, out)
 				}
 			}
@@ -128,11 +133,15 @@ func TestTqServer_Deregister(t *testing.T) {
 	}{
 		"Successful_Deregister": {
 			in: &pb.DeregisterRequest{
-				Id: fixtureId,
+				Options: &pb.DeregisterOptions{
+					WorkerId: fixtureId,
+				},
 			},
 			expected: expectation{
 				out: &pb.DeregisterResponse{
-					Deregistered: true,
+					Result: &pb.DeregisterResult{
+						Deregistered: true,
+					},
 				},
 				err: nil,
 			},
@@ -147,7 +156,7 @@ func TestTqServer_Deregister(t *testing.T) {
 					t.Errorf("Err -> \nWant: %q\nGot: %q\n", tt.expected.err, err)
 				}
 			} else {
-				if tt.expected.out.Deregistered != out.Deregistered {
+				if tt.expected.out.Result.Deregistered != out.Result.Deregistered {
 					t.Errorf("Out -> \nWant: %q\nGot: %q\n", tt.expected.out, out)
 				}
 			}
