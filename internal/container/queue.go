@@ -14,6 +14,7 @@ type Queue[T any] interface {
 	Back() (T, error)
 	Length() (int64, error)
 	Filter(func(T) bool) []T
+	FindFirst(func(T) bool) (T, bool)
 }
 
 type SliceQueue[T any] struct {
@@ -78,9 +79,22 @@ func (sq *SliceQueue[T]) Filter(pred func(T) bool) []T {
 	defer sq.l.RUnlock()
 
 	for _, v := range sq.s {
-		if ok := pred(v); ok {
+		if pred(v) {
 			filtered = append(filtered, v)
 		}
 	}
 	return filtered
+}
+
+func (sq *SliceQueue[T]) FindFirst(pred func(T) bool) (T, bool) {
+	sq.l.RLock()
+	defer sq.l.RUnlock()
+
+	for _, v := range sq.s {
+		if pred(v) {
+			return v, true
+		}
+	}
+	var v T
+	return v, false
 }
