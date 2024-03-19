@@ -8,31 +8,12 @@ import (
 	"tq/pb"
 )
 
-func handleStatusResponse(ctx context.Context, sr *pb.StatusResponse, w *model.Worker,
-	updates chan<- *pb.JobStatus) error {
-	switch sr.Result.JobControl {
-	case pb.JobControl_JOB_CONTROL_NONE:
-		log.Printf("no job available")
-	case pb.JobControl_JOB_CONTROL_CONTINUE:
-		log.Printf("continue current job")
-	case pb.JobControl_JOB_CONTROL_NEW:
-		log.Printf("new job")
-		err := startJob(ctx, sr.Result.Job, updates)
-		if err != nil {
-			return err
-		}
-		w.WorkerState = pb.WorkerState_WORKER_STATE_WORKING
-	case pb.JobControl_JOB_CONTROL_CANCEL:
-		log.Printf("cancel current job")
-		w.WorkerState = pb.WorkerState_WORKER_STATE_AVAILABLE
-	default:
-		return fmt.Errorf("received unexpect job control message")
-	}
-
-	return nil
+type worker struct {
+	model.Worker
+	job job
 }
 
-func startJob(ctx context.Context, job *pb.JobSpec, updates chan<- *pb.JobStatus) error {
+func (w *worker) startJob(ctx context.Context, job *pb.JobSpec, updates chan<- *pb.JobStatus) error {
 	// guard
 	if job == nil {
 		return fmt.Errorf("no job data")
@@ -44,8 +25,8 @@ func startJob(ctx context.Context, job *pb.JobSpec, updates chan<- *pb.JobStatus
 	case pb.JobKind_JOB_KIND_TEST:
 		log.Printf("test job received")
 	case pb.JobKind_JOB_KIND_SLEEP:
-		workerJob := newWorkerSleepJob(job, updates)
-		workerJob.run(ctx)
+		w.job = newWorkerSleepJob(ctx, job, updates)
+		w.job.run()
 	case pb.JobKind_JOB_KIND_FFMPEG:
 		log.Printf("FFMPEG job received")
 	default:

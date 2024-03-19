@@ -34,7 +34,8 @@ func (s *SimpleMapStore[T, U]) Exists(k T) (bool, error) {
 	defer s.l.RUnlock()
 	_, ok := s.m[k]
 	if !ok {
-		return ok, ErrorNotFound
+		// Not an error if it doesn't exist. Error is reserved for an actual error condition.
+		return ok, nil
 	}
 	return ok, nil
 }

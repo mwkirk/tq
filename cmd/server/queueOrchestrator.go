@@ -34,7 +34,7 @@ func (orc *SimpleQueueOrchestrator) Register(options *pb.RegisterOptions) (*pb.R
 	id, err := orc.workerMgr.Register(options.Label)
 	return &pb.RegisterResult{
 		Registered: err == nil,
-		WorkerId: string(id)}, err
+		WorkerId:   string(id)}, err
 }
 
 func (orc *SimpleQueueOrchestrator) Deregister(options *pb.DeregisterOptions) (*pb.DeregisterResult, error) {
@@ -72,7 +72,29 @@ func (orc *SimpleQueueOrchestrator) Status(options *pb.StatusOptions) (*pb.Statu
 		return orc.dispatch(model.WorkerId(options.WorkerId))
 	case pb.WorkerState_WORKER_STATE_WORKING:
 		log.Printf("worker working [%s, %v]", options.WorkerId, options.JobStatus)
-		return &pb.StatusResult{JobControl: pb.JobControl_JOB_CONTROL_CONTINUE}, nil
+
+		// Check to see if the worker's job has been canceled
+		jobNum, err := orc.workerMgr.GetAssignedJob(model.WorkerId(options.WorkerId))
+		if err != nil {
+			return &pb.StatusResult{}, err
+		}
+
+		shouldCancel, err := orc.jobMgr.MarkedForCancellation(jobNum)
+		if err != nil {
+			return &pb.StatusResult{}, err
+		}
+
+		if shouldCancel {
+			err = orc.jobMgr.UnmarkForCancellation(jobNum)
+			if err != nil {
+				return &pb.StatusResult{}, err
+			}
+
+			log.Printf("canceling job %d for worker %s", jobNum, options.WorkerId)
+			return &pb.StatusResult{JobControl: pb.JobControl_JOB_CONTROL_CANCEL}, nil
+		} else {
+			return &pb.StatusResult{JobControl: pb.JobControl_JOB_CONTROL_CONTINUE}, nil
+		}
 	default:
 		return &pb.StatusResult{}, fmt.Errorf("bad worker state [%s, %v]. THIS SHOULD NOT HAPPEN", options.WorkerId,
 			options.WorkerState)
@@ -84,8 +106,7 @@ func (orc *SimpleQueueOrchestrator) Submit(options *pb.SubmitOptions) (*pb.Submi
 }
 
 func (orc *SimpleQueueOrchestrator) Cancel(options *pb.CancelOptions) (*pb.CancelResult, error) {
-	// TODO implement me
-	panic("implement me")
+	return orc.jobMgr.Cancel(options)
 }
 
 func (orc *SimpleQueueOrchestrator) List(options *pb.ListOptions) (*pb.ListResult, error) {
@@ -112,7 +133,7 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (*pb.StatusResul
 	j, err := orc.jobMgr.DequeueWait()
 	if err != nil {
 		if errors.Is(err, container.ErrorQueueEmpty) {
-			log.Printf("no jobs waiting")
+			// log.Printf("no jobs waiting")
 			return &pb.StatusResult{JobControl: pb.JobControl_JOB_CONTROL_NONE}, nil
 		}
 		return &pb.StatusResult{JobControl: pb.JobControl_JOB_CONTROL_NONE}, err

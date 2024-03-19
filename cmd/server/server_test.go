@@ -32,9 +32,10 @@ func testingServer(ctx context.Context) (pb.TqWorkerClient, func()) {
 	wq := container.NewSliceQueue[*pb.JobSpec]()
 	rm := container.NewSimpleMapStore[model.JobNumber, *pb.JobSpec]()
 	dq := container.NewSliceQueue[*pb.JobSpec]()
+	cs := container.NewSimpleMapStore[model.JobNumber, bool]()
 	aws := container.NewSimpleMapStore[model.JobNumber, model.WorkerId]()
 	jhs := container.NewSimpleMapStore[model.JobNumber, []*pb.JobStatus]()
-	jobMgr := NewSimpleJobMgr(wq, rm, dq, aws, jhs)
+	jobMgr := NewSimpleJobMgr(wq, rm, dq, cs, aws, jhs)
 	orc := NewSimpleQueueOrchestrator(workerMgr, jobMgr)
 
 	srv := grpc.NewServer()

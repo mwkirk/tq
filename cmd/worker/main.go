@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
@@ -53,11 +54,13 @@ func main() {
 
 	go func() {
 		currStatus := &pb.JobStatus{}
-		w := model.Worker{
-			Registered:  rr.Result.Registered,
-			Id:          model.WorkerId(rr.Result.WorkerId),
-			Label:       label,
-			WorkerState: pb.WorkerState_WORKER_STATE_AVAILABLE,
+		w := &worker{
+			Worker: model.Worker{
+				Registered:  rr.Result.Registered,
+				Id:          model.WorkerId(rr.Result.WorkerId),
+				Label:       label,
+				WorkerState: pb.WorkerState_WORKER_STATE_AVAILABLE,
+			},
 		}
 
 		writeUpdates <- &pb.JobStatus{}
@@ -99,6 +102,7 @@ func main() {
 					fallthrough
 				case pb.JobState_JOB_STATE_DONE_CANCEL:
 					w.WorkerState = pb.WorkerState_WORKER_STATE_AVAILABLE
+					w.job = nil
 				}
 
 				statusCtx, statusCancel := context.WithTimeout(statusLoopCtx, timeout)
@@ -113,7 +117,7 @@ func main() {
 				if err != nil {
 					log.Printf("error received from status request: %v", err)
 				} else {
-					err := handleStatusResponse(statusLoopCtx, sr, &w, writeUpdates)
+					err := handleStatusResponse(statusLoopCtx, sr, w, writeUpdates)
 					if err != nil {
 						log.Printf("%s", err)
 					}
@@ -133,4 +137,27 @@ func main() {
 		log.Fatalf("failed to degister: %v", err)
 	}
 	log.Printf("worker deregistered: %v", dr.Result.Deregistered)
+}
+
+func handleStatusResponse(ctx context.Context, sr *pb.StatusResponse, w *worker, updates chan<- *pb.JobStatus) error {
+	switch sr.Result.JobControl {
+	case pb.JobControl_JOB_CONTROL_NONE:
+		// log.Printf("no job available")
+	case pb.JobControl_JOB_CONTROL_CONTINUE:
+		// log.Printf("continue current job")
+	case pb.JobControl_JOB_CONTROL_NEW:
+		log.Printf("starting new job")
+		err := w.startJob(ctx, sr.Result.Job, updates)
+		if err != nil {
+			return err
+		}
+		w.WorkerState = pb.WorkerState_WORKER_STATE_WORKING
+	case pb.JobControl_JOB_CONTROL_CANCEL:
+		log.Printf("canceling current job")
+		w.job.cancel()
+	default:
+		return fmt.Errorf("received unexpected job control message")
+	}
+
+	return nil
 }

@@ -47,14 +47,14 @@ func cancel(jobNum model.JobNumber) {
 	defer conn.Close()
 	c := pb.NewTqJobClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
-	defer cancel()
+	ctx, ctxCancel := context.WithTimeout(context.Background(), time.Second*120)
+	defer ctxCancel()
 
-	options := pb.CancelOptions{JobNum: uint32(jobNum)}
-	cr, err := c.Cancel(ctx, &pb.CancelRequest{Options: &options})
+	options := &pb.CancelOptions{JobNum: uint32(jobNum)}
+	cr, err := c.Cancel(ctx, &pb.CancelRequest{Options: options})
 	if err != nil {
 		log.Fatalf("failed to cancel job: %s\n", err)
 	}
 
-	fmt.Printf("canceled job %v\n", cr.Result.JobStatus)
+	fmt.Printf("canceled job %v\n", cr.Result)
 }

@@ -38,8 +38,8 @@ func list() {
 	defer conn.Close()
 	c := pb.NewTqJobClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
-	defer cancel()
+	ctx, ctxCancel := context.WithTimeout(context.Background(), time.Second*120)
+	defer ctxCancel()
 
 	jobFilter := pb.JobFilter{
 		JobStateFilter: int32(pb.JobState_JOB_STATE_ALL),

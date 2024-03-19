@@ -61,7 +61,11 @@ func (s *server) Submit(ctx context.Context, request *pb.SubmitRequest) (*pb.Sub
 }
 
 func (s *server) Cancel(ctx context.Context, request *pb.CancelRequest) (*pb.CancelResponse, error) {
-	return nil, nil
+	result, err := s.orc.Cancel(request.Options)
+	if err != nil {
+		err = fmt.Errorf("job cancellation failed: %w", err)
+	}
+	return &pb.CancelResponse{Result: result}, err
 }
 
 func (s *server) List(ctx context.Context, request *pb.ListRequest) (*pb.ListResponse, error) {

@@ -15,6 +15,7 @@ type WorkerMgr interface {
 	Deregister(id model.WorkerId) error
 	AssignJob(id model.WorkerId, jobNum model.JobNumber) error
 	Reset(id model.WorkerId) error
+	GetAssignedJob(id model.WorkerId) (model.JobNumber, error)
 }
 
 type WorkerStore container.KVStore[model.WorkerId, *model.Worker]
@@ -83,4 +84,12 @@ func (mgr *SimpleWorkerMgr) Reset(id model.WorkerId) error {
 		w.WorkerState = pb.WorkerState_WORKER_STATE_AVAILABLE
 		return w
 	})
+}
+
+func (mgr *SimpleWorkerMgr) GetAssignedJob(id model.WorkerId) (model.JobNumber, error) {
+	worker, err := mgr.store.Get(id)
+	if err != nil {
+		return model.NullJobNumber, fmt.Errorf("unknown worker %s: %w", id, err)
+	}
+	return worker.JobNum, nil
 }

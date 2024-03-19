@@ -11,17 +11,20 @@ import "tq/internal/model"
 
 type JobMgr interface {
 	Submit(*pb.JobSpec) (*pb.SubmitResult, error)
-	Cancel(model.JobNumber) error
+	Cancel(*pb.CancelOptions) (*pb.CancelResult, error)
 	List(*pb.ListOptions) (*pb.ListResult, error)
 	AssignWorker(*pb.JobSpec, model.WorkerId) error
 	UpdateJobHistory(model.JobNumber, []*pb.JobStatus) error
 	EnqueueWait(*pb.JobSpec) error
 	DequeueWait() (*pb.JobSpec, error)
-	Finish(number model.JobNumber) (model.WorkerId, error)
+	Finish(model.JobNumber) (model.WorkerId, error)
+	MarkedForCancellation(model.JobNumber) (bool, error)
+	UnmarkForCancellation(number model.JobNumber) error
 }
 
 type JobQueue container.Queue[*pb.JobSpec]
 type JobStore container.KVStore[model.JobNumber, *pb.JobSpec]
+type CancelStore container.KVStore[model.JobNumber, bool]
 type AssignedWorkerStore container.KVStore[model.JobNumber, model.WorkerId]
 type JobHistoryStore container.KVStore[model.JobNumber, []*pb.JobStatus]
 
@@ -31,16 +34,28 @@ type SimpleJobMgr struct {
 	wait            JobQueue        // queues of JobSpecs
 	run             JobStore
 	done            JobQueue
+	cancel          CancelStore
 	assignedWorkers AssignedWorkerStore // JobNumber -> WorkerId
 	jobHistory      JobHistoryStore     // JobNumber -> slices of JobStatus
 }
 
-func NewSimpleJobMgr(waitQueue JobQueue, runStore JobStore, doneQueue JobQueue,
+// NewSimpleJobMgr creates a new instance of SimpleJobMgr with the provided dependencies and returns a pointer to it.
+// The SimpleJobMgr is responsible for managing jobs, including submitting, canceling, listing, assigning workers, updating job history, and handling job queues and stores.
+// Parameters:
+// - waitQueue: The job queue that holds waiting jobs (type: JobQueue)
+// - runStore: The key-value store that holds running jobs (type: JobStore)
+// - doneQueue: The job queue that holds completed jobs (type: JobQueue)
+// - assignedWorkerStore: The key-value store that holds assigned workers for jobs (type: AssignedWorkerStore)
+// - jobHistoryStore: The key-value store that holds job history information (type: JobHistoryStore)
+// Returns:
+// - *SimpleJobMgr: A pointer to the created SimpleJobMgr instance
+func NewSimpleJobMgr(waitQueue JobQueue, runStore JobStore, doneQueue JobQueue, cancelStore CancelStore,
 	assignedWorkerStore AssignedWorkerStore, jobHistoryStore JobHistoryStore) *SimpleJobMgr {
 	return &SimpleJobMgr{
 		wait:            waitQueue,
 		run:             runStore,
 		done:            doneQueue,
+		cancel:          cancelStore,
 		assignedWorkers: assignedWorkerStore,
 		jobHistory:      jobHistoryStore,
 	}
@@ -77,9 +92,52 @@ func (mgr *SimpleJobMgr) Submit(job *pb.JobSpec) (*pb.SubmitResult, error) {
 	return result, err
 }
 
-func (mgr *SimpleJobMgr) Cancel(jobNum model.JobNumber) error {
-	// TODO implement me
-	panic("implement me")
+// Cancel marks a job for cancellation by placing it into the cancellation store
+func (mgr *SimpleJobMgr) Cancel(options *pb.CancelOptions) (*pb.CancelResult, error) {
+	jobNum := model.JobNumber(options.JobNum)
+	result := &pb.CancelResult{
+		Canceled: false,
+		// todo: set the job status. What was I thinking here? The last status?
+		// JobStatus:
+	}
+
+	markCanceled := func(jobNum model.JobNumber) (*pb.CancelResult, error) {
+		err := mgr.cancel.Put(jobNum, true)
+		if err != nil {
+			return result, fmt.Errorf("unable to mark job %d for cancellation: %w", options.JobNum, err)
+		}
+		result.Canceled = true
+		return result, nil
+	}
+
+	// Check if the job number is valid, by first checking the run queue
+	exists, err := mgr.run.Exists(jobNum)
+	if err != nil {
+		return result, fmt.Errorf("unable to mark job %d for cancellation: %w", options.JobNum, err)
+	} else if exists {
+		return markCanceled(jobNum)
+	}
+
+	// Then check the wait queue
+	matchesJobNum := func(jobSpec *pb.JobSpec) bool {
+		if jobSpec.JobNum == uint32(jobNum) {
+			return true
+		}
+		return false
+	}
+
+	_, exists = mgr.wait.FindFirst(matchesJobNum)
+	if exists {
+		return markCanceled(jobNum)
+	}
+
+	// Check the done queue so that the user can be informed
+	_, exists = mgr.done.FindFirst(matchesJobNum)
+	if exists {
+		return result, fmt.Errorf("job %d has already completed", jobNum)
+	}
+
+	return result, fmt.Errorf("job %d cannot be found", jobNum)
 }
 
 // List lists jobs filtered by the job state, job kind, and job numbers
@@ -107,6 +165,7 @@ func (mgr *SimpleJobMgr) List(options *pb.ListOptions) (*pb.ListResult, error) {
 	return resp, nil
 }
 
+// AssignWorker assigns a worker to a job and updates the run queue and assigned workers map
 func (mgr *SimpleJobMgr) AssignWorker(job *pb.JobSpec, id model.WorkerId) error {
 	err := mgr.run.Put(model.JobNumber(job.JobNum), job)
 	if err != nil {
@@ -118,21 +177,31 @@ func (mgr *SimpleJobMgr) AssignWorker(job *pb.JobSpec, id model.WorkerId) error 
 	return mgr.assignedWorkers.Put(model.JobNumber(job.JobNum), id)
 }
 
+// UpdateJobHistory updates the job history with the given job number and job status.
+// It appends the job status to the existing job status list for the specified job.
+// The updated job status list is then stored in the job history store.
 func (mgr *SimpleJobMgr) UpdateJobHistory(jobNum model.JobNumber, jobStatus []*pb.JobStatus) error {
 	return mgr.jobHistory.Update(jobNum, func(v []*pb.JobStatus) []*pb.JobStatus {
 		return append(v, jobStatus...)
 	})
 }
 
-// EnqueueWait adds a job to the wait queue without assigning a job number
+// EnqueueWait adds a job to the wait queue
 func (mgr *SimpleJobMgr) EnqueueWait(job *pb.JobSpec) error {
 	return mgr.wait.Enqueue(job)
 }
 
+// DequeueWait retrieves and removes a job from the wait queue
 func (mgr *SimpleJobMgr) DequeueWait() (*pb.JobSpec, error) {
 	return mgr.wait.Dequeue()
 }
 
+// Finish completes a job by performing the following steps:
+// - Retrieves the assigned worker ID for the job number
+// - Removes the job from the run store
+// - Enqueues the job into the done queue
+// - Deletes the job number from the assigned workers map
+// - Returns the assigned worker ID and any error that occurred
 func (mgr *SimpleJobMgr) Finish(jobNum model.JobNumber) (model.WorkerId, error) {
 	id := mgr.getAssignedWorkerId(jobNum)
 
@@ -155,6 +224,24 @@ func (mgr *SimpleJobMgr) Finish(jobNum model.JobNumber) (model.WorkerId, error) 
 	}
 
 	return id, nil
+}
+
+// MarkedForCancellation checks if a job is marked for cancellation
+func (mgr *SimpleJobMgr) MarkedForCancellation(jobNum model.JobNumber) (bool, error) {
+	marked, err := mgr.cancel.Exists(jobNum)
+	if err != nil {
+		return false, fmt.Errorf("error checking for job %d existence: %w", jobNum, err)
+	}
+	return marked, nil
+}
+
+// UnmarkForCancellation removes a job from the cancellation store
+func (mgr *SimpleJobMgr) UnmarkForCancellation(jobNum model.JobNumber) error {
+	err := mgr.cancel.Delete(jobNum)
+	if err != nil {
+		return fmt.Errorf("error unmarking job %d for cancellation", jobNum)
+	}
+	return nil
 }
 
 // ------------------------------------------------------------------
