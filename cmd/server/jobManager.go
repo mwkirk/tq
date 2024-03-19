@@ -92,7 +92,8 @@ func (mgr *SimpleJobMgr) Submit(job *pb.JobSpec) (*pb.SubmitResult, error) {
 	return result, err
 }
 
-// Cancel marks a job for cancellation by placing it into the cancellation store
+// Cancel marks a job for cancellation by placing it into the cancellation store if it's currently
+// in the run queue. If it's in the wait queue, we'll cancel it by moving it to the done queue.
 func (mgr *SimpleJobMgr) Cancel(options *pb.CancelOptions) (*pb.CancelResult, error) {
 	jobNum := model.JobNumber(options.JobNum)
 	result := &pb.CancelResult{
@@ -110,7 +111,7 @@ func (mgr *SimpleJobMgr) Cancel(options *pb.CancelOptions) (*pb.CancelResult, er
 		return result, nil
 	}
 
-	// Check if the job number is valid, by first checking the run queue
+	// Check if the job is in the run queue, and move it to the cancellation store if it is
 	exists, err := mgr.run.Exists(jobNum)
 	if err != nil {
 		return result, fmt.Errorf("unable to mark job %d for cancellation: %w", options.JobNum, err)
@@ -118,7 +119,7 @@ func (mgr *SimpleJobMgr) Cancel(options *pb.CancelOptions) (*pb.CancelResult, er
 		return markCanceled(jobNum)
 	}
 
-	// Then check the wait queue
+	// Check the wait queue, and cancel the job by moving it to the done queue if it's there
 	matchesJobNum := func(jobSpec *pb.JobSpec) bool {
 		if jobSpec.JobNum == uint32(jobNum) {
 			return true
@@ -126,9 +127,26 @@ func (mgr *SimpleJobMgr) Cancel(options *pb.CancelOptions) (*pb.CancelResult, er
 		return false
 	}
 
-	_, exists = mgr.wait.FindFirst(matchesJobNum)
+	jobSpec, exists := mgr.wait.FindFirstAndDelete(matchesJobNum)
 	if exists {
-		return markCanceled(jobNum)
+		err := mgr.UpdateJobHistory(jobNum, []*pb.JobStatus{
+			{
+				JobState: pb.JobState_JOB_STATE_DONE_CANCEL,
+				JobNum:   uint32(jobNum),
+				Progress: 0.0,
+				Msg:      []string{"canceled"},
+			},
+		})
+		if err != nil {
+			return result, fmt.Errorf("unable to cancel job %d: %w", options.JobNum, err)
+		}
+
+		err = mgr.done.Enqueue(jobSpec)
+		if err != nil {
+			return result, fmt.Errorf("unable to cancel job %d: %w", options.JobNum, err)
+		}
+		result.Canceled = true
+		return result, nil
 	}
 
 	// Check the done queue so that the user can be informed
