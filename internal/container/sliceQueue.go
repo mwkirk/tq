@@ -7,23 +7,24 @@ import (
 
 var ErrorQueueEmpty = errors.New("queue empty")
 
-type Queue[T any] interface {
+type Queue[T comparable] interface {
 	Enqueue(T) error
 	Dequeue() (T, error)
 	Front() (T, error)
 	Back() (T, error)
 	Length() (int64, error)
+	Equal(Queue[T]) bool
 	Filter(func(T) bool) []T
 	FindFirst(func(T) bool) (T, bool)
 	FindFirstAndDelete(func(T) bool) (T, bool)
 }
 
-type SliceQueue[T any] struct {
+type SliceQueue[T comparable] struct {
 	l sync.RWMutex
 	s []T
 }
 
-func NewSliceQueue[T any]() *SliceQueue[T] {
+func NewSliceQueue[T comparable]() *SliceQueue[T] {
 	return &SliceQueue[T]{
 		s: make([]T, 0),
 	}
@@ -72,6 +73,18 @@ func (sq *SliceQueue[T]) Length() (int64, error) {
 	sq.l.RLock()
 	defer sq.l.RUnlock()
 	return int64(len(sq.s)), nil
+}
+
+func (sq *SliceQueue[T]) Equal(q Queue[T]) bool {
+	sq.l.RLock()
+	defer sq.l.RUnlock()
+
+	other, ok := q.(*SliceQueue[T])
+	if !ok {
+		return false
+	}
+
+	return sliceEqual(sq.s, other.s)
 }
 
 func (sq *SliceQueue[T]) Filter(pred func(T) bool) []T {

@@ -6,6 +6,7 @@ import (
 )
 
 var ErrorNotFound = errors.New("not found")
+var ErrorOperationPanicked = errors.New("operation panicked")
 
 // KVStore might be implemented by a database or external service that could return an error
 type KVStore[T comparable, U any] interface {
@@ -77,10 +78,20 @@ func (s *SimpleMapStore[T, U]) Delete(k T) error {
 	return nil
 }
 
-func (s *SimpleMapStore[T, U]) Update(k T, f func(v U) U) error {
+func (s *SimpleMapStore[T, U]) Update(k T, f func(v U) U) (err error) {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.m[k] = f(s.m[k]) // todo: f() might fail, should handle this
+	defer func() {
+		if r := recover(); r != nil {
+			err = ErrorOperationPanicked
+		}
+	}()
+
+	_, ok := s.m[k]
+	if !ok {
+		return ErrorNotFound
+	}
+	s.m[k] = f(s.m[k]) // the recover should catch a panic here
 	return nil
 }
 

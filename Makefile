@@ -34,6 +34,24 @@ server-linux: proto
 test:
 	go test ./...
 
+html-coverage:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 all: cli worker server
 
 all-linux: cli-linux worker-linux server-linux
