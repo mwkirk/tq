@@ -53,7 +53,6 @@ func main() {
 	defer statusLoopCancel()
 
 	go func() {
-		currStatus := &pb.JobStatus{}
 		w := &worker{
 			Worker: model.Worker{
 				Registered:  rr.Result.Registered,
@@ -63,7 +62,7 @@ func main() {
 			},
 		}
 
-		writeUpdates <- &pb.JobStatus{}
+		currStatus := &pb.JobStatus{}
 
 		for {
 			select {

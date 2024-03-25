@@ -45,9 +45,9 @@ func (orc *SimpleQueueOrchestrator) Deregister(options *pb.DeregisterOptions) (*
 }
 
 func (orc *SimpleQueueOrchestrator) Status(options *pb.StatusOptions) (*pb.StatusResult, error) {
-	log.Printf("worker reported status [%s, %v]", options.WorkerId, options.WorkerState)
+	log.Printf("worker %s status %v", options.WorkerId, options.WorkerState)
 
-	if len(options.JobStatus) > 0 {
+	if len(options.JobStatus) > 0 && options.JobStatus[0].JobNum != 0 {
 		n := model.JobNumber(options.JobStatus[0].JobNum)
 		err := orc.jobMgr.UpdateJobHistory(n, options.JobStatus)
 		if err != nil {

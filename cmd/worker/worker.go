@@ -29,6 +29,8 @@ func (w *worker) startJob(ctx context.Context, job *pb.JobSpec, updates chan<- *
 		w.job.run()
 	case pb.JobKind_JOB_KIND_FFMPEG:
 		log.Printf("FFMPEG job received")
+		w.job = newWorkerFfmpegJob(ctx, job, updates)
+		w.job.run()
 	default:
 		return fmt.Errorf("unexpected job kind")
 	}

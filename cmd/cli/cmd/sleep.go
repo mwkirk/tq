@@ -23,8 +23,6 @@ var sleepCmd = &cobra.Command{
 			// Should always be an int since validated
 			log.Fatalf("sleep duration was not an integer")
 		}
-
-		fmt.Printf("sleep job of %d secs\n", sec)
 		j := pb.JobSpec{
 			Kind:   pb.JobKind_JOB_KIND_SLEEP,
 			JobNum: 0,
@@ -33,6 +31,7 @@ var sleepCmd = &cobra.Command{
 				"duration": args[0],
 			},
 		}
+		fmt.Printf("sleep job of %d secs\n", sec)
 		submit(j)
 	},
 }
