@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"math/rand"
 	"strconv"
 	"time"
 	"tq/pb"
@@ -50,6 +51,16 @@ func (j *workerSleepJob) run() {
 		return
 	}
 
+	var failRate float64
+	failRateStr, ok := j.jobSpec.Parms["failRate"]
+	if ok {
+		failRate, err = strconv.ParseFloat(failRateStr, 64)
+		if err != nil {
+			j.updateStatus(pb.JobState_JOB_STATE_DONE_ERR, 0, "bad failRate specified for sleep job")
+			return
+		}
+	}
+
 	go func() {
 		chunk := max(d/10, 1)
 		for i := 0; i < d; i += chunk {
@@ -58,6 +69,10 @@ func (j *workerSleepJob) run() {
 				j.updateStatus(pb.JobState_JOB_STATE_DONE_CANCEL, float32(i)/float32(d), "sleep job canceled")
 				return
 			default:
+				if rand.Float64() < failRate {
+					j.updateStatus(pb.JobState_JOB_STATE_DONE_ERR, float32(i)/float32(d), "sleep job failed")
+					return
+				}
 				j.updateStatus(pb.JobState_JOB_STATE_RUN, float32(i)/float32(d), "sleep job running")
 				time.Sleep(time.Duration(chunk) * time.Second)
 			}

@@ -12,6 +12,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var failRate float64
+
 var sleepCmd = &cobra.Command{
 	Use:   "sleep [seconds]",
 	Short: "Submit a sleep job",
@@ -29,6 +31,7 @@ var sleepCmd = &cobra.Command{
 			Name:   "sleep " + args[0],
 			Parms: map[string]string{
 				"duration": args[0],
+				"failRate": fmt.Sprintf("%f", failRate),
 			},
 		}
 		fmt.Printf("sleep job of %d secs\n", sec)
@@ -38,6 +41,7 @@ var sleepCmd = &cobra.Command{
 
 func init() {
 	submitCmd.AddCommand(sleepCmd)
+	sleepCmd.Flags().Float64VarP(&failRate, "fail", "f", 0.0, "chance of job failure")
 }
 
 // validate args are all integers
