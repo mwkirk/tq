@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -51,25 +52,39 @@ func (j *workerSleepJob) run() {
 		return
 	}
 
-	var failRate float64
+	shouldFail := false
 	failRateStr, ok := j.jobSpec.Parms["failRate"]
 	if ok {
-		failRate, err = strconv.ParseFloat(failRateStr, 64)
+		failRate, err := strconv.ParseFloat(failRateStr, 64)
 		if err != nil {
 			j.updateStatus(pb.JobState_JOB_STATE_DONE_ERR, 0, "bad failRate specified for sleep job")
 			return
+		}
+
+		if failRate < 0 || failRate > 1 {
+			j.updateStatus(pb.JobState_JOB_STATE_DONE_ERR, 0, "failRate must be between 0 and 1")
+			return
+		}
+
+		if rand.Float64() < failRate {
+			shouldFail = true
 		}
 	}
 
 	go func() {
 		chunk := max(d/10, 1)
+		failTime := rand.Intn(d)
+		if shouldFail {
+			log.Printf("failTime: %d", failTime)
+		}
+
 		for i := 0; i < d; i += chunk {
 			select {
 			case <-j.ctx.Done():
 				j.updateStatus(pb.JobState_JOB_STATE_DONE_CANCEL, float32(i)/float32(d), "sleep job canceled")
 				return
 			default:
-				if rand.Float64() < failRate {
+				if shouldFail && failTime <= i {
 					j.updateStatus(pb.JobState_JOB_STATE_DONE_ERR, float32(i)/float32(d), "sleep job failed")
 					return
 				}
