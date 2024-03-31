@@ -10,7 +10,7 @@ import (
 
 type worker struct {
 	model.Worker
-	job job
+	job workerJob
 }
 
 func (w *worker) startJob(ctx context.Context, job *pb.JobSpec, updates chan<- *pb.JobStatus) error {

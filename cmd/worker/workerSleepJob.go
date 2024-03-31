@@ -7,25 +7,19 @@ import (
 	"tq/pb"
 )
 
-type job interface {
-	run()
-	cancel()
-}
-
 type workerSleepJob struct {
-	jobSpec    *pb.JobSpec
-	updates    chan<- *pb.JobStatus
-	ctx        context.Context
-	cancelFunc context.CancelFunc
+	workerJobImpl
 }
 
-func newWorkerSleepJob(ctx context.Context, jobMsg *pb.JobSpec, updates chan<- *pb.JobStatus) *workerSleepJob {
-	ctx, cancel := context.WithCancel(ctx)
+func newWorkerSleepJob(pctx context.Context, jobMsg *pb.JobSpec, updates chan<- *pb.JobStatus) *workerSleepJob {
+	ctx, cancel := context.WithCancel(pctx)
 	return &workerSleepJob{
-		jobSpec:    jobMsg,
-		updates:    updates,
-		ctx:        ctx,
-		cancelFunc: cancel,
+		workerJobImpl{
+			jobSpec:    jobMsg,
+			updates:    updates,
+			ctx:        ctx,
+			cancelFunc: cancel,
+		},
 	}
 }
 

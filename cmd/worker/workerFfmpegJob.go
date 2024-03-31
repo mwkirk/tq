@@ -8,19 +8,18 @@ import (
 )
 
 type workerFfmpegJob struct {
-	jobSpec    *pb.JobSpec
-	updates    chan<- *pb.JobStatus
-	ctx        context.Context
-	cancelFunc context.CancelFunc
+	workerJobImpl
 }
 
-func newWorkerFfmpegJob(ctx context.Context, jobMsg *pb.JobSpec, updates chan<- *pb.JobStatus) *workerFfmpegJob {
-	ctx, cancel := context.WithCancel(ctx)
+func newWorkerFfmpegJob(pctx context.Context, jobMsg *pb.JobSpec, updates chan<- *pb.JobStatus) *workerFfmpegJob {
+	ctx, cancel := context.WithCancel(pctx)
 	return &workerFfmpegJob{
-		jobSpec:    jobMsg,
-		updates:    updates,
-		ctx:        ctx,
-		cancelFunc: cancel,
+		workerJobImpl{
+			jobSpec:    jobMsg,
+			updates:    updates,
+			ctx:        ctx,
+			cancelFunc: cancel,
+		},
 	}
 }
 
