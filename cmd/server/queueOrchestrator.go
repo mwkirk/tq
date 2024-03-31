@@ -56,11 +56,11 @@ func (orc *SimpleQueueOrchestrator) Status(options *pb.StatusOptions) (*pb.Statu
 
 		last := options.JobStatus[len(options.JobStatus)-1]
 		switch last.JobState {
-		case pb.JobState_JOB_STATE_DONE_OK:
-			fallthrough
 		case pb.JobState_JOB_STATE_DONE_ERR:
-			fallthrough
+			orc.requeue(last)
 		case pb.JobState_JOB_STATE_DONE_CANCEL:
+			fallthrough
+		case pb.JobState_JOB_STATE_DONE_OK:
 			orc.finish(last)
 		}
 	}
@@ -169,6 +169,20 @@ func (orc *SimpleQueueOrchestrator) dispatch(id model.WorkerId) (*pb.StatusResul
 
 func (orc *SimpleQueueOrchestrator) finish(status *pb.JobStatus) error {
 	id, err := orc.jobMgr.Finish(model.JobNumber(status.JobNum))
+	if err != nil {
+		return err
+	}
+
+	err = orc.workerMgr.Reset(id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (orc *SimpleQueueOrchestrator) requeue(status *pb.JobStatus) error {
+	id, err := orc.jobMgr.Requeue(model.JobNumber(status.JobNum))
 	if err != nil {
 		return err
 	}

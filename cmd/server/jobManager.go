@@ -18,6 +18,7 @@ type JobMgr interface {
 	EnqueueWait(*pb.JobSpec) error
 	DequeueWait() (*pb.JobSpec, error)
 	Finish(model.JobNumber) (model.WorkerId, error)
+	Requeue(model.JobNumber) (model.WorkerId, error)
 	MarkedForCancellation(model.JobNumber) (bool, error)
 	UnmarkForCancellation(number model.JobNumber) error
 }
@@ -239,6 +240,30 @@ func (mgr *SimpleJobMgr) Finish(jobNum model.JobNumber) (model.WorkerId, error) 
 	err = mgr.assignedWorkers.Delete(jobNum)
 	if err != nil {
 		return id, fmt.Errorf("failed to finish job: %w", err)
+	}
+
+	return id, nil
+}
+
+func (mgr *SimpleJobMgr) Requeue(jobNum model.JobNumber) (model.WorkerId, error) {
+	id := mgr.getAssignedWorkerId(jobNum)
+
+	// remove job from run store
+	j, err := mgr.run.GetAndDelete(jobNum)
+	if err != nil {
+		return id, fmt.Errorf("failed to requeue job: %w", err)
+	}
+
+	// and move to wait queue
+	err = mgr.wait.Enqueue(j)
+	if err != nil {
+		return id, fmt.Errorf("failed to requeue job: %w", err)
+	}
+
+	// remove job number from assigned workers map
+	err = mgr.assignedWorkers.Delete(jobNum)
+	if err != nil {
+		return id, fmt.Errorf("failed to requeue job: %w", err)
 	}
 
 	return id, nil
